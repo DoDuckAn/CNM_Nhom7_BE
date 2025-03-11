@@ -2,6 +2,13 @@ const User=require('../models/User')
 const {v4:uuidv4}=require('uuid')
 const brcypt=require('bcrypt')
 
+/**
+ * Lấy danh sách tất cả người dùng (ẩn mật khẩu)
+ *
+ * @route   GET /api/user
+ * @method  getAllUsers
+ * @returns {JSON} Danh sách user hoặc lỗi server
+ */
 const getAllUsers=async(req,res)=>{
     try {
         const users=await User.find().select('-password');
@@ -11,6 +18,15 @@ const getAllUsers=async(req,res)=>{
     }
 }
 
+/**
+ * Tìm user theo userID
+ *
+ * @route   GET /api/users/:userID
+ * @method  findUserByUserID
+ * @param   {Object} req - Request từ client
+ * @param   {string} req.params.userID - ID của user cần tìm
+ * @returns {JSON} Thông tin user hoặc lỗi server
+ */
 const findUserByUserID=async(req,res)=>{
     try {
         const userID=req.params.userID;
@@ -24,6 +40,18 @@ const findUserByUserID=async(req,res)=>{
     }
 }
 
+/**
+ * Thêm user mới
+ *
+ * @route   POST /api/user
+ * @method  addUser
+ * @param   {Object} req - Request từ client
+ * @param   {string} req.body.phoneNumber - Số điện thoại của user
+ * @param   {string} req.body.password - Mật khẩu của user
+ * @param   {string} req.body.username - Tên người dùng
+ * @param   {string} req.body.DOB - Ngày sinh của user
+ * @returns {JSON} Kết quả thêm user hoặc lỗi server
+ */
 const addUser=async(req,res)=>{
     try {
         const {phoneNumber,password,username,DOB}=req.body;
@@ -46,6 +74,17 @@ const addUser=async(req,res)=>{
         res.status(500).json({message:'lỗi server', error: error.message })
     }
 }
+
+/**
+ * Đăng nhập
+ *
+ * @route   POST /api/user/login
+ * @method  loginUser
+ * @param   {Object} req - Request từ client
+ * @param   {string} req.body.phoneNumber - Số điện thoại của user
+ * @param   {string} req.body.password - Mật khẩu của user
+ * @returns {JSON} Kết quả đăng nhập hoặc lỗi server
+ */
 
 const loginUser=async(req,res)=>{
     try {

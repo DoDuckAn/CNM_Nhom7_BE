@@ -2,6 +2,15 @@ const { default: mongoose } = require('mongoose');
 const Message=require('../models/Message');
 const MessageType=require('../models/messageType');
 
+/**
+ * Lấy tất cả tin nhắn giữa hai người dùng trong chat đơn
+ * 
+ * @route   GET /api/message/:userID1/:userID2
+ * @method  getAllMessageInSingleChat
+ * @param   {string} req.params.userID1 - ID của người dùng 1
+ * @param   {string} req.params.userID2 - ID của người dùng 2
+ * @returns {JSON} Danh sách tin nhắn giữa 2 user hoặc lỗi server
+ */
 const getAllMessageInSingleChat=async(req,res)=>{
     try {
         const {userID1,userID2}=req.params;
@@ -22,6 +31,18 @@ const getAllMessageInSingleChat=async(req,res)=>{
     }
 }
 
+/**
+ * Gửi tin nhắn mới trong cuộc trò chuyện đơn
+ * 
+ * @route   POST /api/message/
+ * @method  postMessageInSingleChat
+ * @param   {Object} req - Request từ client
+ * @param   {string} req.body.senderID - ID của người gửi
+ * @param   {string} req.body.receiverID - ID của người nhận
+ * @param   {string} req.body.messageTypeID - Loại tin nhắn
+ * @param   {String} req.body.context - Nội dung tin nhắn
+ * @returns {JSON} Kết quả lưu tin nhắn hoặc lỗi server
+ */
 const postMessageInSingleChat=async(req,res)=>{
     try {
         const {senderID,receiverID,groupID,messageTypeID,context}=req.body;

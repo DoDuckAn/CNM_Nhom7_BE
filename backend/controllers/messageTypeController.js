@@ -1,5 +1,12 @@
 const MessageType=require('../models/messageType');
 
+/**
+ * Lấy danh sách tất cả messageType
+ * 
+ * @route   GET /api/messageType
+ * @method  getAllMessageType
+ * @returns {JSON} Danh sách tất cả messageType hoặc lỗi server
+ */
 const getAllMessageType=async(req,res)=>{
     try {
         const messageTypeList=await MessageType.find();
@@ -10,6 +17,16 @@ const getAllMessageType=async(req,res)=>{
     }
 }
 
+/**
+ * Thêm một messageType mới
+ * 
+ * @route   POST /api/messageType
+ * @method  addMessageType
+ * @param   {Object} req - Request từ client
+ * @param   {string} req.body.typeID - ID của messageType
+ * @param   {string} req.body.typeName - Tên của messageType
+ * @returns {JSON} Kết quả thêm messageType hoặc lỗi server
+ */
 const addMessageType=async(req,res)=>{
     try {
         const {typeID,typeName}=req.body;
@@ -27,6 +44,14 @@ const addMessageType=async(req,res)=>{
     }
 }
 
+/**
+ * Xóa messageType theo ID
+ * 
+ * @route   DELETE /api/messageType/:id
+ * @method  deleteMessageTypeById
+ * @param   {string} req.params.id - ID của messageType cần xóa
+ * @returns {JSON} Kết quả xóa messageType hoặc lỗi server
+ */
 const deleteMessageTypeById=async(req,res)=>{
     try {
         const {id}=req.params;
@@ -41,6 +66,16 @@ const deleteMessageTypeById=async(req,res)=>{
     }
 }
 
+/**
+ * Đổi tên messageType theo ID
+ * 
+ * @route   PUT /api/messageType/:id
+ * @method  renameMessageType
+ * @param   {Object} req - Request từ client
+ * @param   {string} req.params.id - ID của messageType cần đổi tên
+ * @param   {string} req.body.typeName - Tên mới của messageType
+ * @returns {JSON} Kết quả cập nhật messageType hoặc lỗi server
+ */
 const renameMessageType=async(req,res)=>{
     try {
         const {id}=req.params;
