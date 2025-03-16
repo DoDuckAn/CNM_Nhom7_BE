@@ -1,6 +1,7 @@
 const { default: mongoose } = require('mongoose');
 const Message=require('../models/Message');
 const MessageType=require('../models/messageType');
+const User = require('../models/User');
 
 /**
  * Lấy tất cả tin nhắn giữa hai người dùng trong chat đơn
@@ -28,6 +29,63 @@ const getAllMessageInSingleChat=async(req,res)=>{
     } catch (error) {
         console.log('lỗi khi get all message trong chat đơn');
         res.status(500).json({message:`Lỗi server: ${error}`});
+    }
+}
+
+/**
+ * Lấy danh sách tất cả cuộc trò chuyện của một người dùng và tin nhắn tương ứng
+ * 
+ * @route   GET /api/message/user/:userID
+ * @method  getAllUserMessage
+ * @param   {string} req.params.userID - ID của người dùng
+ * @returns {JSON} Danh sách các cuộc trò chuyện và tin nhắn tương ứng hoặc lỗi server
+ */
+const getAllUserMessage=async(req,res)=>{
+    try {
+        //tìm user
+        const {userID}=req.params;
+        if(!userID){
+            console.log('thiếu userid khi getAllUserMessage trong chat đơn');
+            return res.status(404).json({message:'thiếu userID'});            
+        }
+        const user=await User.findOne({userID});
+        if(!user){
+            console.log('không tìm thấy user với id:',userID);
+            return res.status(404).json({message:'không tìm thấy user'});
+        }
+        
+        //lấy danh sách conversationsID
+        const {conversationsID}=user;
+        if(!conversationsID||conversationsID.length===0){
+            console.log('user chưa chat với ai');
+            return res.status(200).json([]);
+        }
+        //lấy thông tin cơ bản của các conversations
+        const conversationsInfo=await Promise.all(
+            conversationsID.map(async(ID)=>{
+                const conversationInfo=await User.findOne({userID:ID}).select("userID username");
+                return conversationInfo;
+            })
+        )
+        //lấy các message giữa user và các conversations
+        const ConversationsAndMessages=await Promise.all(
+            conversationsInfo.map(async (conversation)=>{
+
+                const userMessages=await Message.find({
+                    $or:[
+                        {senderID:userID,receiverID:conversation.userID},
+                        {senderID:conversation.userID,receiverID:userID}
+                    ]
+                }).sort({createdAt:1});
+
+                return {conversation:conversation,messages:userMessages};
+            })
+        )
+        
+        res.status(200).json(ConversationsAndMessages);
+    } catch (error) {
+        console.error("Lỗi khi getAllUserMessage:", error);
+        res.status(500).json({ message: "Lỗi server" });
     }
 }
 
@@ -60,4 +118,4 @@ const postMessageInSingleChat=async(req,res)=>{
     }
 }
 
-module.exports={getAllMessageInSingleChat,postMessageInSingleChat};
+module.exports={getAllMessageInSingleChat,postMessageInSingleChat,getAllUserMessage};
