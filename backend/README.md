@@ -85,6 +85,67 @@ _Request Body_:
 
 ## Message API
 
+### Get All Chats of a User
+**Endpoint:** `GET /api/message/:userID`
+- **Description:** Lấy danh sách các cuộc trò chuyện của một user.
+- **Response:** Trả về danh sách các user đã chat cùng và tin nhắn của chatbox đó.
+
+**Example:**
+```
+GET http://localhost:3000/api/message/4ba34dec
+```
+_Response:_
+```json
+[
+    {
+        "conversation": {
+            "_id": "67cfdf4de8497358d54a7970",
+            "userID": "75e9f681",
+            "username": "John Doe"
+        },
+        "messages": [
+            {
+                "_id": "67d446a7448f8a0be686985d",
+                "senderID": "41cf6b7a",
+                "receiverID": "75e9f681",
+                "groupID": null,
+                "seenStatus": [],
+                "deleteStatus": false,
+                "recallStatus": false,
+                "messageTypeID": "type1",
+                "context": "chào, t là 0",
+                "createdAt": "2025-03-14T15:09:27.552Z",
+                "updatedAt": "2025-03-14T15:09:27.552Z",
+                "__v": 0
+            },{...}
+        ]
+    },
+    {
+        "conversation": {
+            "_id": "0",
+            "userID": "0",
+            "username": "0"
+        },
+        "messages": [
+            {
+                "_id": "67d446a7448f8a0be686985d",
+                "senderID": "0",
+                "receiverID": "0",
+                "groupID": null,
+                "seenStatus": [],
+                "deleteStatus": false,
+                "recallStatus": false,
+                "messageTypeID": "type1",
+                "context": "0",
+                "createdAt": "2025-03-14T15:09:27.552Z",
+                "updatedAt": "2025-03-14T15:09:27.552Z",
+                "__v": 0
+            },{...}
+        ]
+    }
+]
+```
+
 ### Get All Messages in a Single Chat
 **Endpoint:** `GET /api/message/:userID1/:userID2`
 - **Description:** Lấy tất cả tin nhắn giữa hai user.
