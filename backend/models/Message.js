@@ -8,7 +8,8 @@ const MessageSchema=new mongoose.Schema({
     deleteStatus:{type:Boolean,default:false},
     recallStatus:{type:Boolean,default:false},
     messageTypeID:{type:String,required:true},
-    context:{type:mongoose.Schema.Types.Mixed,required:true}
+    context:{type:mongoose.Schema.Types.Mixed,required:true},
+    clientOffset:{type:String,unique:true}
     },
     {timestamps:true}
 );
