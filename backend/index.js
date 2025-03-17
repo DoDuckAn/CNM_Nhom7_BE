@@ -35,13 +35,13 @@ io.on("connection",async (socket)=>{
     
     socket.on('sendTextMessage',async (message,callback)=>{
         try {
-            const {senderID,receiverID,groupID,messageTypeID,context,clientOffset}=message;
-            const checkClientOffset=await Message.findOne({clientOffset:clientOffset});
-            console.log('check:',checkClientOffset);
+            const {senderID,receiverID,groupID,messageTypeID,context,messageID}=message;
+            const checkMessageID=await Message.findOne({messageID:messageID});
+            console.log('check:',checkMessageID);
             
             //check xem tin nhắn buffer đã được gửi chưa 
-            if(checkClientOffset){
-                console.log('tin nhắn buffer đã tồn tại:',clientOffset);
+            if(checkMessageID){
+                console.log('tin nhắn buffer đã tồn tại:',messageID);
                 callback("tin nhắn đã tồn tại");//tin nhắn đã tồn tại, callback lại cho client biết
                 return;
             }
@@ -63,7 +63,7 @@ io.on("connection",async (socket)=>{
             }
             callback('đã gửi')
 
-            const newMessage=new Message({senderID,receiverID,groupID,messageTypeID:'type1',context,clientOffset})
+            const newMessage=new Message({senderID,receiverID,groupID,messageTypeID:'type1',context,messageID})
             let response=await newMessage.save(); 
             if (!response) {
                 throw new Error("Lưu tin nhắn vào DB thất bại");

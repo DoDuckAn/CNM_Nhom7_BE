@@ -9,7 +9,7 @@ const MessageSchema=new mongoose.Schema({
     recallStatus:{type:Boolean,default:false},
     messageTypeID:{type:String,required:true},
     context:{type:mongoose.Schema.Types.Mixed,required:true},
-    clientOffset:{type:String,unique:true}
+    messageID:{type:String,unique:true}//messageID do bên client tạo=socket.id+counter
     },
     {timestamps:true}
 );
