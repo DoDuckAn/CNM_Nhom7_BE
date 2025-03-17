@@ -83,6 +83,75 @@ _Request Body_:
   }
   ```
 
+### Forgot Password(Change Password)
+**Endpoint:** `PUT /api/user/changePassword/:phoneNumber`  
+- **Description:** Đổi mật khẩu của người dùng dựa trên số điện thoại.  
+- **Request Parameters:**  
+  - `phoneNumber` _(string)_: Số điện thoại của người dùng cần đổi mật khẩu.  
+- **Request Body:**  
+  ```json
+  {
+    "newPassword": "string"
+  }
+  ```
+- **Response:** Trả về thông báo đổi mật khẩu thành công hoặc lỗi.  
+
+**Example:**
+```
+PUT http://localhost:3000/api/user/changePassword/0123456789
+```
+_Request Body_:
+```json
+{
+  "newPassword": "newsecurepassword"
+}
+```
+_Response_:
+```json
+{
+  "message": "Đổi mật khẩu thành công"
+}
+```
+
+---
+
+### Update UserInfo
+**Endpoint:** `PUT /api/user/:userID`  
+- **Description:** Cập nhật thông tin cá nhân của người dùng.  
+- **Request Parameters:**  
+  - `userID` _(string)_: ID của người dùng cần cập nhật.  
+- **Request Body:**  
+  ```json
+  {
+    "username": "string",
+    "DOB": "string"
+  }
+  ```
+- **Response:** Trả về thông báo cập nhật thành công hoặc lỗi.  
+
+**Example:**
+```
+PUT http://localhost:3000/api/user/921946bf
+```
+_Request Body_:
+```json
+{
+  "username": "Updated User",
+  "DOB": "1999-12-31"
+}
+```
+_Response_:
+```json
+{
+  "message": "Đã cập nhật thông tin user",
+  "user": {
+    "userID": "921946bf",
+    "username": "Updated User",
+    "DOB": "1999-12-31"
+  }
+}
+```
+
 ## Message API
 
 ### Get All Chats of a User
