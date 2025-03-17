@@ -89,7 +89,66 @@ socket.on("receiveTextMessage", (message) => {
 
 ---
 
-### **2.4. Xử lý mất kết nối và tải lại tin nhắn**
+### **2.4. Đánh dấu tin nhắn đã đọc**
+- **Sự kiện:** `seenMessage`
+- **Mô tả:** Khi người dùng xem tin nhắn, sự kiện này sẽ được gửi lên server để cập nhật trạng thái đã đọc
+- **Gợi ý:** khi vào trong chatbox, lúc fetch data tin nhắn thì có thể emit sự kiện này cho các tin nhắn mà seenStatus chưa có userID đang seen
+- **Client gửi:**
+```javascript
+socket.emit("seenMessage", messageID, seenUserID, (response) => {
+    console.log("Server response:", response);
+});
+```
+- **Server xử lý:**
+```javascript
+socket.on("seenMessage", async (messageID, seenUserID, callback) => {
+    try {
+        const message = await Message.findOne({ messageID });
+        if (!message) {
+            console.log("không tìm thấy tin nhắn");
+            callback("không tìm thấy tin nhắn");
+            return;
+        }
+
+        if (message.seenStatus.includes(seenUserID)) {
+            console.log("User đã tồn tại trong seenStatus");
+            callback("User đã tồn tại trong seenStatus");
+            return;
+        }
+
+        // Cập nhật trạng thái đã xem
+        message.seenStatus.push(seenUserID);
+        await message.save();
+
+        // Phát sự kiện cập nhật UI
+        if (!message.groupID) {
+            io.to(message.senderID).to(seenUserID).emit("updateSingleChatSeenStatus", messageID);
+            callback("Đã cập nhật seenStatus chat đơn");
+        } else {
+            io.to(message.groupID).emit("updateGroupChatSeenStatus", messageID, seenUserID);
+            callback("Đã cập nhật seenStatus chat nhóm");
+        }
+    } catch (error) {
+        console.log("Lỗi khi xử lý seenMessage:", error);
+    }
+});
+```
+- **Client lắng nghe sự kiện cập nhật UI:**
+```javascript
+socket.on("updateSingleChatSeenStatus", (messageID) => {
+    console.log("Tin nhắn đã được đọc:", messageID);
+    // Cập nhật giao diện tin nhắn
+});
+
+socket.on("updateGroupChatSeenStatus", (messageID, seenUserID) => {
+    console.log(`User ${seenUserID} đã đọc tin nhắn:`, messageID);
+    // Cập nhật giao diện tin nhắn nhóm
+});
+```
+
+---
+
+### **2.5. Xử lý mất kết nối và tải lại tin nhắn**
 - **Sự kiện:** `reloadMessage`
 - **Mô tả:** Khi client bị mất kết nối, server sẽ yêu cầu client tải lại tin nhắn.
 - **Client lắng nghe:**
@@ -108,7 +167,7 @@ if (!socket.recovered) {
 
 ---
 
-### **2.5. Ngắt kết nối**
+### **2.6. Ngắt kết nối**
 - **Sự kiện:** `disconnect`
 - **Mô tả:** Khi người dùng thoát ứng dụng hoặc mất kết nối.
 - **Client lắng nghe:**

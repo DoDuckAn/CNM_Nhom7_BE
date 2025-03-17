@@ -42,10 +42,10 @@ io.on("connection",async (socket)=>{
             //check xem tin nhắn buffer đã được gửi chưa 
             if(checkMessageID){
                 console.log('tin nhắn buffer đã tồn tại:',messageID);
-                callback("tin nhắn đã tồn tại");//tin nhắn đã tồn tại, callback lại cho client biết
+                if (callback) callback("tin nhắn đã tồn tại");//tin nhắn đã tồn tại, callback lại cho client biết
                 return;
             }
-            callback('đang gửi');//callback lại tình trạng tin nhắn
+            if (callback) callback('đang gửi');//callback lại tình trạng tin nhắn
 
             //check xem 2 user đã từng chat với nhau chưa, chưa thì add userID vào conversations của nhau
             const  sender= await User.findOne({userID:senderID});
@@ -61,7 +61,7 @@ io.on("connection",async (socket)=>{
                 await receiver.save();
                 console.log('đã thêm conversations');
             }
-            callback('đã gửi')
+            if (callback) callback('đã gửi')
 
             const newMessage=new Message({senderID,receiverID,groupID,messageTypeID:'type1',context,messageID})
             let response=await newMessage.save(); 
@@ -78,6 +78,44 @@ io.on("connection",async (socket)=>{
             console.log('lỗi khi socket.on sendTextMessage bên server: ',error); 
         }
     });
+
+    socket.on('seenMessage',async(messageID,seenUserID,callback)=>{
+        try {
+            //tìm message
+            const message=await Message.findOne({messageID});
+            if(!message){
+                console.log("không tìm thấy tin nhắn");
+                callback("không tìm thấy tin nhắn");
+                return;
+            }
+
+            //kiểm tra seenStatus
+            if(message.seenStatus.includes(seenUserID)){
+                console.log("seenUserID đã tổn tại trong seenStatus");
+                if (callback) callback("seenUserID đã tổn tại trong seenStatus")
+                return;
+            }
+
+            //trường hợp chat đơn
+            if(!message.groupID){
+                message.seenStatus.push(seenUserID);
+                await message.save();
+
+                io.to(message.senderID).to(message.receiverID).emit("updateSingleChatSeenStatus",(messageID));
+                if (callback) callback("Đã cập nhật seenStatus chat đơn");
+            }
+            //trường hợp chat nhóm
+            else{
+                message.seenStatus.push(seenUserID);
+                await message.save();
+
+                io.to(message.groupID).emit("updateGroupChatSeenStatus",(messageID,seenUserID));
+                if (callback) callback("Đã cập nhật seenStatus chat nhóm");
+            }
+        } catch (error) {
+            console.log("Lỗi khi on seenMessage:",error);            
+        }   
+    })
 
     socket.on("disconnect",()=>{
         console.log("User disconnceted: ",socket.id);        
