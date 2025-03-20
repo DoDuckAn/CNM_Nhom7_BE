@@ -257,6 +257,72 @@ _Response:_
 POST http://localhost:3000/api/message
 ```
 
+### Post Image Message in Single Chat
+
+**Endpoint:** `POST /api/message/image`
+
+**Description:**
+Gửi tin nhắn dạng hình ảnh giữa hai user. Hình ảnh sẽ được lưu tạm trên server, upload lên Cloudinary, sau đó URL ảnh sẽ được lưu vào cơ sở dữ liệu.
+
+---
+
+#### **Request**
+- **Headers:**
+  - `Content-Type: multipart/form-data`
+
+- **Body (Form Data):**
+  | Key         | Type   | Required | Description               |
+  |------------|--------|----------|---------------------------|
+  | senderID   | string | Yes      | ID của người gửi          |
+  | receiverID | string | Yes      | ID của người nhận         |
+  | groupID    | string | No       | ID nhóm (nếu có)         |
+  | image      | file   | Yes      | Ảnh tin nhắn cần upload   |
+
+---
+
+#### **Response**
+- **Success (200 OK):**
+  ```json
+  {
+    "message": "Upload thành công",
+    "context": "https://res.cloudinary.com/.../uploaded_image.jpg"
+  }
+  ```
+
+- **Error Responses:**
+  - **400 Bad Request:** Khi thiếu file ảnh hoặc dữ liệu không hợp lệ
+    ```json
+    {
+      "message": "Thiếu file khi upload"
+    }
+    ```
+  - **500 Internal Server Error:** Khi có lỗi trong quá trình upload
+    ```json
+    {
+      "message": "Lỗi khi postImageMessageInSingleChat",
+      "error": "Chi tiết lỗi"
+    }
+    ```
+
+---
+
+#### **Example Request (cURL)**
+```sh
+curl -X POST "http://localhost:3000/api/message/image" \
+     -H "Content-Type: multipart/form-data" \
+     -F "senderID=12345" \
+     -F "receiverID=67890" \
+     -F "image=@/path/to/image.jpg"
+```
+
+#### **Notes:**
+- Hình ảnh được lưu tạm thời trên server trước khi upload lên Cloudinary.
+- Sau khi upload thành công, file tạm sẽ bị xóa.
+- URL ảnh được lưu vào database dưới trường `context` để client có thể truy xuất.
+- Nếu muốn gửi tin nhắn văn bản, hãy sử dụng endpoint `/api/message`.
+
+---
+
 ## Message Type API
 
 ### Get All Message Types

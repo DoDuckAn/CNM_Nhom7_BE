@@ -2,6 +2,8 @@ const { default: mongoose } = require('mongoose');
 const Message=require('../models/Message');
 const MessageType=require('../models/messageType');
 const User = require('../models/User');
+const fs=require('fs');
+const cloudinary=require('../configs/cloudinaryConfig');
 
 /**
  * Lấy tất cả tin nhắn giữa hai người dùng trong chat đơn
@@ -118,4 +120,56 @@ const postMessageInSingleChat=async(req,res)=>{
     }
 }
 
-module.exports={getAllMessageInSingleChat,postMessageInSingleChat,getAllUserMessage};
+
+/**
+ * Gửi tin nhắn hình ảnh trong cuộc trò chuyện đơn
+ * 
+ * @route   POST /api/message/image
+ * @method  postImageMessageInSingleChat
+ * @param   {Object} req - Request từ client
+ * @param   {string} req.body.senderID - ID của người gửi
+ * @param   {string} req.body.receiverID - ID của người nhận
+ * @param   {string} req.body.groupID - ID của nhóm (nếu có)
+ * @param   {Object} req.file - File ảnh được gửi từ client (được Multer xử lý)
+ * @returns {JSON} Kết quả upload ảnh và lưu tin nhắn hoặc lỗi server
+ */
+
+const postImageMessageInSingleChat=async(req,res)=>{
+    try {
+        const {senderID,receiverID,groupID}=req.body;
+        const context="";
+        //kiểm tra file từ multer
+        if(!req.file){
+            console.log("thiếu file khi upload");
+            return res.status(400).json({message:"Thiếu file khi upload"});
+        }
+        
+        //lấy ra đường dẫn của ảnh được lưu tạm trong local storage(folder uploads)
+        const filePath=req.file.path;
+
+        /// Upload ảnh lên Cloudinary
+        const result = await cloudinary.uploader.upload(filePath, { folder: "CNM_ZaloApp" });
+
+        // Xóa ảnh tạm sau khi upload xong
+        fs.unlink(filePath, (err) => {
+            if (err) console.log("Lỗi khi xóa file tạm:", err);
+        });
+
+        // Lưu tin nhắn vào database
+        const newMessage = new Message({
+            senderID,
+            receiverID,
+            groupID,
+            messageTypeID: "type2",
+            context: result.secure_url // context là URL của ảnh lưu trên cloudinary
+        });
+
+        await newMessage.save();
+        res.status(200).json({message:"Upload thành công",ImageURL:result.secure_url});
+    } catch (error) {
+        console.log("Lỗi khi postImageMessageInSingleChat:",error);
+        res.status(500).json({message:"Lỗi khi postImageMessageInSingleChat",error:error});
+    }
+}
+
+module.exports={getAllMessageInSingleChat,postMessageInSingleChat,getAllUserMessage,postImageMessageInSingleChat};
