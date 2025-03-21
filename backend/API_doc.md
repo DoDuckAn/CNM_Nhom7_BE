@@ -257,40 +257,41 @@ _Response:_
 POST http://localhost:3000/api/message
 ```
 
-### Post Image Message in Single Chat
+### **Upload File Message in Single Chat**
 
-**Endpoint:** `POST /api/message/image`
+**Endpoint:** `POST /api/message/upload`
 
-**Description:**
-Gửi tin nhắn dạng hình ảnh giữa hai user. Hình ảnh sẽ được lưu tạm trên server, upload lên Cloudinary, sau đó URL ảnh sẽ được lưu vào cơ sở dữ liệu.
+**Description:**  
+Gửi tin nhắn chứa file (hình ảnh, video, tài liệu) giữa hai user hoặc trong nhóm. File sẽ được lưu tạm trên server, upload lên Cloudinary, sau đó URL file sẽ được lưu vào cơ sở dữ liệu.
 
 ---
 
-#### **Request**
+### **Request**
 - **Headers:**
   - `Content-Type: multipart/form-data`
 
 - **Body (Form Data):**
-  | Key         | Type   | Required | Description               |
-  |------------|--------|----------|---------------------------|
-  | senderID   | string | Yes      | ID của người gửi          |
-  | receiverID | string | Yes      | ID của người nhận         |
-  | groupID    | string | No       | ID nhóm (nếu có)         |
-  | image      | file   | Yes      | Ảnh tin nhắn cần upload   |
+  | Key         | Type   | Required | Description                                  |
+  |------------|--------|----------|----------------------------------------------|
+  | senderID   | string | Yes      | ID của người gửi                             |
+  | receiverID | string | Yes      | ID của người nhận                            |
+  | groupID    | string | No       | ID nhóm (nếu có)                             |
+  | file       | file   | Yes      | File cần upload (hình ảnh, video, tài liệu)  |
 
 ---
 
-#### **Response**
+### **Response**
 - **Success (200 OK):**
   ```json
   {
     "message": "Upload thành công",
-    "context": "https://res.cloudinary.com/.../uploaded_image.jpg"
+    "fileType": "image/png",
+    "fileURL": "https://res.cloudinary.com/.../uploaded_file.png"
   }
   ```
 
 - **Error Responses:**
-  - **400 Bad Request:** Khi thiếu file ảnh hoặc dữ liệu không hợp lệ
+  - **400 Bad Request:** Khi thiếu file hoặc dữ liệu không hợp lệ
     ```json
     {
       "message": "Thiếu file khi upload"
@@ -299,26 +300,29 @@ Gửi tin nhắn dạng hình ảnh giữa hai user. Hình ảnh sẽ được l
   - **500 Internal Server Error:** Khi có lỗi trong quá trình upload
     ```json
     {
-      "message": "Lỗi khi postImageMessageInSingleChat",
+      "message": "Lỗi khi gửi file",
       "error": "Chi tiết lỗi"
     }
     ```
 
 ---
 
-#### **Example Request (cURL)**
+### **Example Request (cURL)**
 ```sh
-curl -X POST "http://localhost:3000/api/message/image" \
+curl -X POST "http://localhost:3000/api/message/file" \
      -H "Content-Type: multipart/form-data" \
      -F "senderID=12345" \
      -F "receiverID=67890" \
-     -F "image=@/path/to/image.jpg"
+     -F "file=@/path/to/file.png"
 ```
 
-#### **Notes:**
-- Hình ảnh được lưu tạm thời trên server trước khi upload lên Cloudinary.
-- Sau khi upload thành công, file tạm sẽ bị xóa.
-- URL ảnh được lưu vào database dưới trường `context` để client có thể truy xuất.
+---
+
+### **Notes:**
+- Hỗ trợ **hình ảnh (image/**`png`, `jpg`, `jpeg`**), video (video/**`mp4`, `mov`, `avi`**), và tài liệu (PDF, Word, Excel)**.
+- File được lưu tạm thời trên server trước khi upload lên Cloudinary.
+- Sau khi upload thành công, file tạm sẽ bị xóa khỏi server.
+- URL file được lưu vào database dưới trường `context` để client có thể truy xuất.
 - Nếu muốn gửi tin nhắn văn bản, hãy sử dụng endpoint `/api/message`.
 
 ---

@@ -122,16 +122,22 @@ const postMessageInSingleChat=async(req,res)=>{
 
 
 /**
- * Gửi tin nhắn hình ảnh trong cuộc trò chuyện đơn
+ * Gửi tin nhắn file (hình ảnh, video, tài liệu) trong cuộc trò chuyện đơn
  * 
- * @route   POST /api/message/image
- * @method  postImageMessageInSingleChat
+ * @route   POST /api/message/file
+ * @method  postFileMessageInSingleChat
  * @param   {Object} req - Request từ client
  * @param   {string} req.body.senderID - ID của người gửi
  * @param   {string} req.body.receiverID - ID của người nhận
- * @param   {string} req.body.groupID - ID của nhóm (nếu có)
- * @param   {Object} req.file - File ảnh được gửi từ client (được Multer xử lý)
- * @returns {JSON} Kết quả upload ảnh và lưu tin nhắn hoặc lỗi server
+ * @param   {string} [req.body.groupID] - ID của nhóm (nếu có, dùng cho chat nhóm)
+ * @param   {Object} req.file - File được gửi từ client (được Multer xử lý)
+ * @returns {JSON} - Kết quả upload file và lưu tin nhắn hoặc lỗi server
+ * 
+ * @description
+ * - Kiểm tra nếu không có file thì trả về lỗi 400.
+ * - Upload file lên Cloudinary, xác định loại file (image/video/raw).
+ * - Xóa file tạm sau khi upload.
+ * - Lưu tin nhắn vào database với loại tin nhắn tương ứng.
  */
 
 const postFileMessageInSingleChat = async (req, res) => {
