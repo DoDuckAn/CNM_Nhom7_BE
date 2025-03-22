@@ -92,118 +92,66 @@ const getAllUserMessage=async(req,res)=>{
 }
 
 /**
- * Gửi tin nhắn mới trong cuộc trò chuyện đơn
+ * Lưu tin nhắn vào database và xử lý upload file lên Cloudinary (nếu có).
  * 
- * @route   POST /api/message/
- * @method  postMessageInSingleChat
- * @param   {Object} req - Request từ client
- * @param   {string} req.body.senderID - ID của người gửi
- * @param   {string} req.body.receiverID - ID của người nhận
- * @param   {string} req.body.messageTypeID - Loại tin nhắn
- * @param   {String} req.body.context - Nội dung tin nhắn
- * @returns {JSON} Kết quả lưu tin nhắn hoặc lỗi server
- */
-const postMessageInSingleChat=async(req,res)=>{
-    try {
-        const {senderID,receiverID,groupID,messageTypeID,context}=req.body;
-        const checkMessageType=await MessageType.find({typeID:messageTypeID});
-        if(!checkMessageType){
-            console.log('không tìm thấy messageTypeID phù hợp mà message cung cấp khi postMessage');
-            return res.status(404).json({message:'messageTypeID không hợp lệ'})
-        }
-        const newMessage=new Message({senderID,receiverID,groupID,messageTypeID,context});
-        await newMessage.save();
-        res.status(200).json({message:`thêm thành công message: ${newMessage}`});
-    } catch (error) {
-        console.log('lỗi khi post message trong chat đơn');
-        res.status(500).json({message:`Lỗi server: ${error}`});
-    }
-}
-
-
-/**
- * Gửi tin nhắn file (hình ảnh, video, tài liệu) trong cuộc trò chuyện đơn
- * 
- * @route   POST /api/message/file
- * @method  postFileMessageInSingleChat
- * @param   {Object} req - Request từ client
- * @param   {string} req.body.senderID - ID của người gửi
- * @param   {string} req.body.receiverID - ID của người nhận
- * @param   {string} [req.body.groupID] - ID của nhóm (nếu có, dùng cho chat nhóm)
- * @param   {Object} req.file - File được gửi từ client (được Multer xử lý)
- * @returns {JSON} - Kết quả upload file và lưu tin nhắn hoặc lỗi server
- * 
- * @description
- * - Kiểm tra nếu không có file thì trả về lỗi 400.
- * - Upload file lên Cloudinary, xác định loại file (image/video/raw).
- * - Xóa file tạm sau khi upload.
- * - Lưu tin nhắn vào database với loại tin nhắn tương ứng.
+ * @async
+ * @function saveMessage
+ * @param   {string} senderID - ID của người gửi tin nhắn.
+ * @param   {string} receiverID - ID của người nhận tin nhắn (có thể là user hoặc group).
+ * @param   {string|null} groupID - ID của nhóm chat (nếu là tin nhắn nhóm).
+ * @param   {string} messageTypeID - Loại tin nhắn (text, image, video, file, ...).
+ * @param   {string} context - Nội dung tin nhắn (hoặc link file sau khi upload).
+ * @param   {string} messageID - ID duy nhất của tin nhắn.
+ * @param   {string|null} filePath - Đường dẫn file tạm thời trên server (nếu có file).
  */
 
-const postFileMessageInSingleChat = async (req, res) => {
+const saveMessage = async (senderID, receiverID, groupID, messageTypeID, context, messageID, filePath) => {
     try {
-        const { senderID, receiverID, groupID } = req.body;
-
-        // Kiểm tra nếu không có file
-        if (!req.file) {
-            console.log("Thiếu file khi upload");
-            return res.status(400).json({ message: "Thiếu file khi upload" });
+        const checkMessageType = await MessageType.findOne({ typeID: messageTypeID });
+        if (!checkMessageType) {
+            console.log('Không tìm thấy messageTypeID phù hợp');
+            throw new Error("Loại tin nhắn không hợp lệ");
         }
 
-        const filePath = req.file.path; // Lấy đường dẫn file
-        let result;
+        let finalContext = context;
+        // Nếu có file, upload lên Cloudinary
+        if (filePath && ["type2", "type3", "type5"].includes(messageTypeID)) {
+            let result;
+            if (messageTypeID === "type2") {
+                result = await cloudinary.uploader.upload(filePath, { folder: "CNM_ZaloApp" });
+            } else if (messageTypeID === "type3") {
+                result = await cloudinary.uploader.upload(filePath, { folder: "CNM_ZaloApp", resource_type: "video" });
+            } else {
+                result = await cloudinary.uploader.upload(filePath, { folder: "CNM_ZaloApp", resource_type: "raw" });
+            }
+            // Xóa file tạm sau khi upload
+            try {
+                if (fs.existsSync(filePath)) {
+                    console.log("File tồn tại, tiến hành xóa...");
+                    await fs.promises.unlink(filePath);
+                    console.log("File đã bị xóa.");
+                } else {
+                    console.log("File không tồn tại:", filePath);
+                }                
+            } catch (err) {
+                console.log('File chưa được xóa, lỗi khi xóa file tạm:', err);
+            }        
 
-        // Xác định loại file dựa vào mimetype
-        if (req.file.mimetype.startsWith("image/")) {
-            result = await cloudinary.uploader.upload(filePath, { folder: "CNM_ZaloApp" });
-        } else if (req.file.mimetype.startsWith("video/")) {
-            result = await cloudinary.uploader.upload(filePath, {
-                folder: "CNM_ZaloApp",
-                resource_type: "video" 
-            });
-        } else {
-            result = await cloudinary.uploader.upload(filePath, {
-                folder: "CNM_ZaloApp",
-                resource_type: "raw" // Dùng "raw" để upload file tài liệu (PDF, Word, Excel, ...)
-            });
+            //gán link cloudinary vào context
+            finalContext = result.secure_url;
         }
 
-        // Xóa file tạm sau khi upload
-        fs.unlink(filePath, (err) => {
-            if (err) console.log("Lỗi khi xóa file tạm:", err);
-        });
+        // Lưu tin nhắn vào DB
+        const newMessage = new Message({ senderID, receiverID, groupID, messageTypeID, context: finalContext, messageID });
+        const response = await newMessage.save();
+        if (!response) 
+            throw new Error("Lưu tin nhắn thất bại");
 
-        // Xác định kiểu tin nhắn dựa vào loại file
-        let messageTypeID;
-        if (req.file.mimetype.startsWith("image/")) {
-            messageTypeID = "type2"; // Loại tin nhắn ảnh
-        } else if (req.file.mimetype.startsWith("video/")) {
-            messageTypeID = "type3"; // Loại tin nhắn video
-        } else {
-            messageTypeID = "type5"; // Loại tin nhắn file tài liệu
-        }
-
-        // Lưu vào database
-        const newMessage = new Message({
-            senderID,
-            receiverID,
-            groupID,
-            messageTypeID,
-            context: result.secure_url // URL của file trên Cloudinary
-        });
-
-        await newMessage.save();
-        res.status(200).json({
-            message: "Upload thành công",
-            fileType: req.file.mimetype,
-            fileURL: result.secure_url
-        });
-
+        return newMessage;
     } catch (error) {
-        console.log("Lỗi khi postFileMessageInSingleChat:", error);
-        res.status(500).json({ message: "Lỗi khi gửi file", error: error });
+        console.log('Lỗi khi saveMessage:', error);
+        return null;
     }
 };
 
-
-module.exports={getAllMessageInSingleChat,postMessageInSingleChat,getAllUserMessage,postFileMessageInSingleChat};
+module.exports={getAllMessageInSingleChat,saveMessage,getAllUserMessage};
