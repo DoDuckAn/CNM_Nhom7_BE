@@ -53,14 +53,13 @@ io.on("connection",async (socket)=>{
 
             let filePath = null;
 
-            const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
             // Nếu có file trong tin nhắn
             if (file) {
                 // Kiểm tra file có quá lớn không
-                if (message.file && message.file.data.length > 50 * 1024 * 1024) {
+                if (message.file && message.file.data.length > 100 * 1024 * 1024) {
                     console.log("file quá lớn");
                     
-                    if(callback) return callback({ status: "error", message: "File quá lớn! Giới hạn 10MB." });
+                    if(callback) return callback({ status: "error", message: "File quá lớn! Giới hạn 100MB." });
                     else return;
                 }
 

@@ -33,42 +33,90 @@ socket.on("joinUserRoom", (userID) => {
 ---
 
 ### **2.2. Gửi tin nhắn**
-- **Sự kiện:** `sendTextMessage`
-- **Mô tả:** Gửi tin nhắn từ người dùng A đến người dùng B.
+- **Sự kiện:** `sendMessage`
+- **Mô tả:** Gửi tin nhắn từ người dùng A đến người dùng B hoặc nhóm.
 - **Client gửi:**
 ```javascript
 const message = {
     senderID: "userA",
-    receiverID: "userB",
+    receiverID: "userB", // hoặc null nếu là tin nhắn nhóm
     groupID: null, // Nếu gửi tin nhắn nhóm, truyền groupID
-    messageTypeID: "type1",
-    context: "Xin chào!",
-    messageID: "unique_message_id"
+    messageTypeID: "type1", // Loại tin nhắn, nếu là file thì kèm theo file
+    context: "Xin chào!", // Nội dung tin nhắn, nếu gửi file thì server sẽ lưu link cloudinary của file vào context
+    messageID: "unique_message_id", // ID duy nhất của tin nhắn
+    file: {
+        name: "image.png", // Tên file
+        data: "iVBORw0KGgoAAAANSUhEUg...", // File dưới dạng base64
+    }
 };
 
-socket.emit("sendTextMessage", message, (response) => {
+socket.emit("sendMessage", message, (response) => {
     console.log("Server response:", response);
 });
 ```
+**Lưu ý:**
+- File gửi lên phải ở dạng **base64**(chỗ file.data)
+- Nếu file quá lớn (>100MB), server sẽ từ chối xử lý.
+
 - **Server xử lý:**
 ```javascript
-socket.on("sendTextMessage", async (message, callback) => {
+socket.on("sendMessage", async (message, callback) => {
     try {
-        const { senderID, receiverID, messageID, context } = message;
+        const { senderID, receiverID, groupID, messageTypeID, context, messageID, file } = message;
+
+        // Kiểm tra tin nhắn đã tồn tại chưa
         const checkMessageID = await Message.findOne({ messageID });
-        
         if (checkMessageID) {
-            callback("tin nhắn đã tồn tại");
+            if (callback) callback("Tin nhắn đã tồn tại");
             return;
         }
+
+        let filePath = null;
         
-        callback("đang gửi");
-        
-        const newMessage = new Message({ senderID, receiverID, context, messageID });
-        await newMessage.save();
-        
-        io.to(senderID).to(receiverID).emit("receiveTextMessage", newMessage);
-        callback("đã nhận");
+        // Nếu có file trong tin nhắn
+        if (file) {
+            // Kiểm tra file có quá lớn không
+            if (file.data.length > 100 * 1024 * 1024) {
+                if (callback) return callback({ status: "error", message: "File quá lớn! Giới hạn 100MB." });
+                return;
+            }
+
+            // Tạo thư mục lưu trữ file nếu chưa tồn tại
+            const uploadDir = "C:\\Users\\Windows\\Desktop\\uploads"; // Thay đổi đường dẫn theo hệ thống của bạn
+            if (!fs.existsSync(uploadDir)) {
+                fs.mkdirSync(uploadDir, { recursive: true });
+            }
+
+            // Chuyển đổi file từ Base64 thành Buffer
+            const buffer = Buffer.from(file.data, "base64");
+            const fileName = `${Date.now()}-${file.name}`;
+            filePath = path.join(uploadDir, fileName);
+            
+            // Ghi file vào thư mục uploads
+            fs.writeFileSync(filePath, buffer);
+        }
+
+        let newMessage;
+
+        if (!groupID) {
+            // Trường hợp chat đơn
+            const sender = await User.findOne({ userID: senderID });
+            const receiver = await User.findOne({ userID: receiverID });
+            if (!sender.conversationsID.includes(receiverID)) {
+                sender.conversationsID.push(receiverID);
+                receiver.conversationsID.push(senderID);
+                await sender.save();
+                await receiver.save();
+            }
+            newMessage = await MessageController.saveMessage(senderID, receiverID, groupID, messageTypeID, context, messageID, filePath);
+            io.to(senderID).to(receiverID).emit("receiveMessage", newMessage);
+        } else {
+            // Trường hợp chat nhóm
+            newMessage = await MessageController.saveMessage(senderID, receiverID, groupID, messageTypeID, context, messageID, filePath);
+            io.to(groupID).emit("receiveMessage", newMessage);
+        }
+
+        if (callback) callback("Đã nhận");
     } catch (error) {
         console.log("Lỗi khi gửi tin nhắn:", error);
     }
