@@ -8,6 +8,7 @@ const cloudinary=require('../configs/cloudinaryConfig');
 /**
  * Lấy tất cả tin nhắn giữa hai người dùng trong chat đơn
  * 
+ * @async
  * @route   GET /api/message/:userID1/:userID2
  * @method  getAllMessageInSingleChat
  * @param   {string} req.params.userID1 - ID của người dùng 1
@@ -37,7 +38,8 @@ const getAllMessageInSingleChat=async(req,res)=>{
 /**
  * Lấy danh sách tất cả cuộc trò chuyện của một người dùng và tin nhắn tương ứng
  * 
- * @route   GET /api/message/user/:userID
+ * @async
+ * @route   GET /api/message/:userID
  * @method  getAllUserMessage
  * @param   {string} req.params.userID - ID của người dùng
  * @returns {JSON} Danh sách các cuộc trò chuyện và tin nhắn tương ứng hoặc lỗi server

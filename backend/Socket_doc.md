@@ -233,6 +233,174 @@ socket.on("disconnect", () => {
 
 ---
 
+### **2.7. Tham gia nhóm**
+- **Sự kiện:** `joinGroup`
+- **Mô tả:** Người dùng tham gia vào nhóm bằng `groupID`.
+- **Client gửi:**
+```javascript
+socket.emit("joinGroup", userID, groupID, (response) => {
+    console.log("Server response:", response);
+});
+```
+- **Client lắng nghe:**
+```javascript
+socket.on("newMember", (userID) => {
+    console.log("Thành viên mới tham gia:", userID);
+});
+```
+- **Server xử lý:**
+```javascript
+socket.on("joinGroup", async (userID, groupID, callback) => {
+    const joinStatus = await GroupController.joinGroup(userID, groupID);
+    if (joinStatus !== true) {
+        if (callback) callback(joinStatus);
+        return;
+    }
+    socket.join(groupID);
+    io.to(groupID).emit("newMember", userID);
+    if (callback) callback("Tham gia nhóm thành công");
+});
+```
+
+---
+
+### **2.8. Thêm thành viên vào nhóm**
+- **Sự kiện:** `addGroupMember`
+- **Mô tả:** Thêm một người dùng mới vào nhóm.
+- **Client gửi:**
+```javascript
+socket.emit("addGroupMember", userID, groupID, (response) => {
+    console.log("Server response:", response);
+});
+```
+- **Client lắng nghe:**
+```javascript
+socket.on("newMember", (userID) => {
+    console.log("Thành viên mới được thêm:", userID);
+});
+```
+- **Server xử lý:**
+```javascript
+socket.on("addGroupMember", async (userID, groupID, callback) => {
+    const addStatus = await GroupController.joinGroup(userID, groupID);
+    if (addStatus !== true) {
+        if (callback) callback(addStatus);
+        return;
+    }
+    socket.join(groupID);
+    io.to(groupID).emit("newMember", userID);
+    if (callback) callback("Thêm thành viên thành công");
+});
+```
+
+---
+
+### **2.9. Rời nhóm**
+- **Sự kiện:** `leaveGroup`
+- **Mô tả:** Người dùng rời khỏi nhóm.
+- **Client gửi:**
+```javascript
+socket.emit("leaveGroup", userID, groupID, (response) => {
+    console.log("Server response:", response);
+});
+```
+- **Client lắng nghe:**
+```javascript
+socket.on("memberLeft", (userID) => {
+    console.log("Thành viên rời nhóm:", userID);
+});
+```
+- **Server xử lý:**
+```javascript
+socket.on("leaveGroup", async (userID, groupID, callback) => {
+    const leaveStatus = await GroupController.leaveGroup(userID, groupID);
+    if (leaveStatus !== true) {
+        if (callback) callback(leaveStatus);
+        return;
+    }
+    socket.leave(groupID);
+    io.to(groupID).emit("memberLeft", userID);
+    if (callback) callback("Rời nhóm thành công");
+});
+```
+
+---
+
+### **2.10. Kick thành viên khỏi nhóm**
+- **Sự kiện:** `kickMember`
+- **Mô tả:** Leader có quyền kick thành viên khỏi nhóm.
+- **Client gửi:**
+```javascript
+socket.emit("kickMember", leaderID, userID, groupID, (response) => {
+    console.log("Server response:", response);
+});
+```
+- **Client lắng nghe:**
+```javascript
+socket.on("forceLeaveGroup", (userID, groupID) => {
+    if (currentUserID === userID) {
+        socket.leave(groupID);
+        console.log("Bạn đã bị kick khỏi nhóm");
+    } else {
+        console.log("Thành viên bị kick:", userID);
+    }
+});
+```
+- **Server xử lý:**
+```javascript
+socket.on("kickMember", async (leaderID, userID, groupID, callback) => {
+    const leader = await Member.findOne({ userID: leaderID, groupID });
+    if (!leader || leader.memberRole !== "LEADER") {
+        if (callback) callback("Bạn không có quyền kick thành viên");
+        return;
+    }
+    const kickStatus = await GroupController.kickMember(userID, groupID);
+    if (kickStatus !== true) {
+        if (callback) callback(kickStatus);
+        return;
+    }
+    io.to(groupID).emit("forceLeaveGroup", userID, groupID);
+    if (callback) callback("Kick thành công");
+});
+```
+
+---
+
+### **2.11. Xóa nhóm**
+- **Sự kiện:** `deleteGroup`
+- **Mô tả:** Leader có thể xóa nhóm.
+- **Client gửi:**
+```javascript
+socket.emit("deleteGroup", userID, groupID, (response) => {
+    console.log("Server response:", response);
+});
+```
+- **Client lắng nghe:**
+```javascript
+socket.on("groupDeleted", (groupID) => {
+    console.log("Nhóm đã bị xóa:", groupID);
+    socket.leave(groupID);
+    // Điều hướng về danh sách nhóm hoặc trang chính
+});
+```
+- **Server xử lý:**
+```javascript
+socket.on("deleteGroup", async (userID, groupID, callback) => {
+    const leader = await Member.findOne({ userID, groupID });
+    if (!leader || leader.memberRole !== "LEADER") {
+        if (callback) callback("Bạn không có quyền xóa nhóm");
+        return;
+    }
+    const deleteStatus = await GroupController.deleteGroup(groupID);
+    if (deleteStatus !== true) {
+        if (callback) callback(deleteStatus);
+        return;
+    }
+    io.to(groupID).emit("groupDeleted", groupID);
+    if (callback) callback("Xóa nhóm thành công");
+});
+```
+
 ## **3. Lưu ý**
 - Luôn kiểm tra `callback` response khi gửi tin nhắn để biết trạng thái gửi.
 - Khi mất kết nối, client nên gọi API để tải lại tin nhắn cũ nếu cần.

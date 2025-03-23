@@ -325,3 +325,45 @@ _Response:_
   "message": "Rename messageType thành công"
 }
 ```
+
+## Group API
+
+### Create Group
+**Endpoint:** `POST /api/group`
+- **Description:** Tạo một nhóm mới và thêm người tạo nhóm làm LEADER.
+- **Request Body:**
+  ```json
+  {
+    "groupName": "string",
+    "userID": "string"
+  }
+  ```
+- **Response:** Trả về thông tin nhóm vừa tạo hoặc lỗi server.
+
+**Example:**
+```
+POST http://localhost:3000/api/group
+```
+_Request Body:_
+```json
+{
+  "groupName": "Nhóm Học Tập",
+  "userID": "user-123456"
+}
+```
+
+_Response:_
+```json
+{
+  "message": "Tạo nhóm thành công",
+  "group": {
+    "groupID": "group-a1b2c3",
+    "groupName": "Nhóm Học Tập"
+  },
+  "leader": {
+    "groupID": "group-a1b2c3",
+    "userID": "user-123456",
+    "memberRole": "LEADER"
+  }
+}
+```
