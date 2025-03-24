@@ -367,3 +367,42 @@ _Response:_
   }
 }
 ```
+
+### Get User Groups  
+**Endpoint:** `GET /api/group/:userID`  
+- **Description:** Tìm các nhóm mà người dùng tham gia.  
+- **Path Parameter:**  
+  - `userID` (string, required) - ID của người dùng cần lấy danh sách nhóm.  
+- **Response:** Trả về danh sách groupID của cá nhóm đã tham gia hoặc lỗi server.  
+
+**Example:**  
+```
+GET http://localhost:3000/api/group/user-123456
+```  
+
+_Response (User có nhóm tham gia):_  
+```json
+[
+  {
+    "groupID": "group-a1b2c3"
+  },
+  {
+    "groupID": "group-d4e5f6"
+  }
+]
+```  
+
+_Response (User không tồn tại):_  
+```json
+{
+  "message": "Không tìm thấy userID"
+}
+```  
+
+_Response (Lỗi server):_  
+```json
+{
+  "message": "Lỗi server khi tìm các group user tham gia",
+  "error": "Chi tiết lỗi"
+}
+```

@@ -46,6 +46,36 @@ const createGroup=async(req,res)=>{
 }
 
 /**
+ * Tìm các nhóm mà người dùng tham gia
+ * 
+ * @async
+ * @route   GET /api/group/:userID
+ * @method  getUserGroups
+ * @param   {string} req.params.userID - ID của user
+ * @returns {JSON} Danh sách groupID của các nhóm đã tham gia hoặc lỗi server
+ */
+const getUserGroups=async(req,res)=>{
+    try {
+        const {userID}=req.params;
+
+        //kiểm tra userID
+        const checkUser= await User.findOne({userID});
+        if(!checkUser){
+            console.log("không tìm thấy userID");
+            return res.status(400).json({message:"không tìm thấy userID"});
+        }
+        
+        //tìm các group mà user tham gia
+        const groupList=await Member.find({userID}).select("groupID");
+
+        res.status(200).json(groupList);
+    } catch (error) {
+        console.log("lỗi khi tìm các group user tham gia:",error);
+        res.status(500).json({message:"Lỗi server khi tìm các group user tham gia",error:error})
+    }
+}
+
+/**
  * Cho phép một người dùng tham gia nhóm
  *
  * @method  joinGroup
@@ -221,4 +251,4 @@ const deleteGroup=async(groupID)=>{
         return `Lỗi server:${error}`;
     }
 }
-module.exports={createGroup,joinGroup,leaveGroup,kickMember,deleteGroup};
+module.exports={createGroup,joinGroup,leaveGroup,kickMember,deleteGroup,getUserGroups};
