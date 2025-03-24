@@ -8,13 +8,13 @@ const userRoutes=require('./routes/userRoutes')
 const messageTypeRoutes=require('./routes/messageTypeRoutes')
 const messageRoutes=require('./routes/messageRoutes')
 const groupRoutes=require('./routes/groupRoutes')
+const authRoutes=require('./routes/authRoutes')
 const Message=require('./models/Message')
 const User = require('./models/User')
 const MessageController=require('./controllers/messageController')
 const GroupController=require('./controllers/groupController')
 const fs = require("fs");
 const path = require("path");
-const { log } = require('console')
 
 const app=express()
 const server=http.createServer(app)
@@ -25,14 +25,31 @@ const io=new Server(server,{
     pingTimeout: 60000,
 })
 
+app.use(cors());
 app.use(express.json())
+app.use(express.urlencoded({ extended: true }));
 
 app.use('/api/user',userRoutes)
 app.use('/api/messageType',messageTypeRoutes)
 app.use('/api/message',messageRoutes)
 app.use('/api/group',groupRoutes)
+app.use('/api/auth',authRoutes)
 
 connectDB();
+
+io.use((socket,next)=>{
+    const token=socket.handshake.auth.token;
+    if(!token)
+        return next(new Error('Athentication error'));
+
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+        if (err) 
+            return next(new Error('Invalid token'));
+
+        socket.user = user;
+        next();
+    });
+})
 
 io.on("connection",async (socket)=>{
     console.log("User connected: ",socket.id);

@@ -76,32 +76,6 @@ const addUser=async(req,res)=>{
 }
 
 /**
- * Đăng nhập
- *
- * @route   POST /api/user/login
- * @method  loginUser
- * @param   {Object} req - Request từ client
- * @param   {string} req.body.phoneNumber - Số điện thoại của user
- * @param   {string} req.body.password - Mật khẩu của user
- * @returns {JSON} Kết quả đăng nhập hoặc lỗi server
- */
-
-const loginUser=async(req,res)=>{
-    try {
-        const{phoneNumber,password}=req.body;
-        const user=await User.findOne({phoneNumber});
-        if(!user)
-            return res.status(400).json({message:'số điện thoại chưa được đăng ký'})
-        const checkPassword=await bcrypt.compare(password,user.password);
-        if(!checkPassword)
-            return res.status(400).json({message:'mật khẩu sai'});
-        res.status(200).json({message:'đăng nhập thành công ',user})
-    } catch (error) {
-        res.status(500).json({message:'Lỗi server', error: error.message })
-    }
-}
-
-/**
  * Đổi mật khẩu người dùng
  *
  * @route   PUT /api/user/changePassword/:phoneNumber
@@ -166,4 +140,4 @@ const updateUserInfo=async(req,res)=>{
         res.status(500).json({ message: "Lỗi server", error: error.message });
     }
 }
-module.exports={getAllUsers,addUser,loginUser,findUserByUserID,changePassword,updateUserInfo};
+module.exports={getAllUsers,addUser,findUserByUserID,changePassword,updateUserInfo};

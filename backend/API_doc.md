@@ -58,31 +58,6 @@ _Request Body_:
 }
 ```
 
-
-### Login User
-**Endpoint:** `POST /api/user/login`
-- **Description:** Đăng nhập user bằng số điện thoại và mật khẩu.
-- **Request Body:**
-  ```json
-  {
-    "phoneNumber": "string",
-    "password": "string"
-  }
-  ```
-- **Response:** Trả về thông tin user nếu đăng nhập thành công.
-
-**Example:**
-```
-POST http://localhost:3000/api/user/login
-```
-_Request Body_:
- ```json
-  {
-    "phoneNumber": "0123456789",
-    "password": "securepassword"
-  }
-  ```
-
 ### Forgot Password(Change Password)
 **Endpoint:** `PUT /api/user/changePassword/:phoneNumber`  
 - **Description:** Đổi mật khẩu của người dùng dựa trên số điện thoại.  
@@ -406,3 +381,138 @@ _Response (Lỗi server):_
   "error": "Chi tiết lỗi"
 }
 ```
+
+---
+## Authentication API
+
+### Login User  
+**Endpoint:** `POST /api/auth/login`  
+- **Description:** Đăng nhập user bằng số điện thoại và mật khẩu.  
+- **Request Body:**  
+  ```json
+  {
+    "phoneNumber": "string",
+    "password": "string"
+  }
+  ```
+- **Response:**  
+  - **200 OK**: Trả về thông tin user và token nếu đăng nhập thành công.  
+  - **400 Bad Request**: Nếu số điện thoại chưa được đăng ký hoặc mật khẩu sai.  
+  - **500 Internal Server Error**: Nếu có lỗi từ server.  
+
+**Example:**  
+```
+POST http://localhost:3000/api/auth/login
+```
+_Request Body_:  
+```json
+{
+  "phoneNumber": "0123456789",
+  "password": "securepassword"
+}
+```
+_Response (Success)_:  
+```json
+{
+  "message": "đăng nhập thành công",
+  "user": {
+    "userID": "abc123",
+    "phoneNumber": "0123456789",
+    "username": "John Doe",
+    "DOB": "2000-01-01"
+  },
+  "accessToken": "your-access-token",
+  "refreshToken": "your-refresh-token"
+}
+```
+_Response (Số điện thoại chưa đăng ký)_:  
+```json
+{
+  "message": "số điện thoại chưa được đăng ký"
+}
+```
+_Response (Mật khẩu sai)_:  
+```json
+{
+  "message": "mật khẩu sai"
+}
+```
+_Response (Lỗi server)_:  
+```json
+{
+  "message": "Lỗi server",
+  "error": "Chi tiết lỗi"
+}
+```
+
+---
+
+### Refresh Access Token  
+**Endpoint:** `POST /api/auth/refreshToken`  
+- **Description:** Tạo Access Token mới bằng Refresh Token.  
+- **Request Body:**  
+  ```json
+  {
+    "refreshToken": "string"
+  }
+  ```
+- **Response:** Trả về Access Token mới nếu Refresh Token hợp lệ.  
+
+**Example:**  
+```
+POST http://localhost:3000/api/auth/refreshToken
+```
+_Request Body_:  
+```json
+{
+  "refreshToken": "your-refresh-token"
+}
+```
+
+---
+
+### Logout User  
+**Endpoint:** `POST /api/auth/logout`  
+- **Description:** Đăng xuất user và xóa Refresh Token khỏi hệ thống.  
+- **Request Body:**  
+  ```json
+  {
+    "refreshToken": "string"
+  }
+  ```
+- **Response:** Trả về thông báo đăng xuất thành công.  
+
+**Example:**  
+```
+POST http://localhost:3000/api/auth/logout
+```
+_Request Body_:  
+```json
+{
+  "refreshToken": "your-refresh-token"
+}
+```
+
+---
+
+### Authenticate Access Token (Middleware)  
+**Middleware Name:** `authenticateAcessToken`  
+- **Description:** Xác thực Access Token để bảo vệ các API yêu cầu xác thực.  
+- **Usage:** Middleware này được sử dụng trước các route cần xác thực user.  
+- **Request Header:**  
+  ```
+  Authorization: Bearer <access_token>
+  ```
+- **Response:**  
+  - 401 nếu không có token.  
+  - 403 nếu token không hợp lệ.  
+  - Tiếp tục request nếu token hợp lệ.  
+
+**Example Usage:**  
+```js
+router.get('/protected-route', authenticateAcessToken, (req, res) => {
+    res.json({ message: "Bạn đã truy cập vào route bảo vệ!" });
+});
+```
+
+---
