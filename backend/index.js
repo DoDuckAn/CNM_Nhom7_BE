@@ -37,19 +37,19 @@ app.use('/api/auth',authRoutes)
 
 connectDB();
 
-// io.use((socket,next)=>{
-//     const token=socket.handshake.auth.token;
-//     if(!token)
-//         return next(new Error('Athentication error'));
+io.use((socket,next)=>{
+    const token=socket.handshake.auth.token;
+    if(!token)
+        return next(new Error('Athentication error'));
 
-//     jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-//         if (err) 
-//             return next(new Error('Invalid token'));
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+        if (err) 
+            return next(new Error('Invalid token'));
 
-//         socket.user = user;
-//         next();
-//     });
-// })
+        socket.user = user;
+        next();
+    });
+})
 
 io.on("connection",async (socket)=>{
     console.log("User connected: ",socket.id);
