@@ -9,6 +9,7 @@ const messageTypeRoutes=require('./routes/messageTypeRoutes')
 const messageRoutes=require('./routes/messageRoutes')
 const groupRoutes=require('./routes/groupRoutes')
 const authRoutes=require('./routes/authRoutes')
+const OTPCodeRoutes=require('./routes/OTPRoute')
 const Message=require('./models/Message')
 const User = require('./models/User')
 const MessageController=require('./controllers/messageController')
@@ -34,6 +35,7 @@ app.use('/api/messageType',messageTypeRoutes)
 app.use('/api/message',messageRoutes)
 app.use('/api/group',groupRoutes)
 app.use('/api/auth',authRoutes)
+app.use('/api/OTP',OTPCodeRoutes)
 
 connectDB();
 

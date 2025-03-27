@@ -211,6 +211,39 @@ _Response:_
   }
 ]
 ```
+
+### Get All Messages in Group Chat
+**Endpoint:** `GET /api/message/group/:groupID`
+- **Description:** Lấy tất cả tin nhắn trong nhóm theo `groupID`.
+- **Parameters:**
+  - `groupID` (string, required): ID của nhóm cần lấy tin nhắn.
+- **Response:** Trả về danh sách tin nhắn trong nhóm hoặc lỗi server.
+
+**Example:**
+```
+GET http://localhost:3000/api/message/group/group-a1b2c3
+```
+
+_Response:_
+```json
+[
+  {
+    "messageID": "msg-123",
+    "groupID": "group-a1b2c3",
+    "senderID": "user-456",
+    "content": "Chào mọi người!",
+    "createdAt": "2025-03-27T08:30:00.000Z"
+  },
+  {
+    "messageID": "msg-124",
+    "groupID": "group-a1b2c3",
+    "senderID": "user-789",
+    "content": "Chào bạn!",
+    "createdAt": "2025-03-27T08:31:00.000Z"
+  }
+]
+```
+
 ## Message Type API
 
 ### Get All Message Types
@@ -516,3 +549,63 @@ router.get('/protected-route', authenticateAcessToken, (req, res) => {
 ```
 
 ---
+
+### Send OTP
+**Endpoint:** `POST /api/OTP/send`
+- **Description:** Gửi mã OTP đến email của người dùng.
+- **Request Body:**
+  ```json
+  {
+    "gmail": "string"
+  }
+  ```
+- **Response:** Trả về thông báo gửi thành công hoặc lỗi server.
+
+**Example:**
+```
+POST http://localhost:3000/api/OTP/send
+```
+_Request Body:_
+```json
+{
+  "gmail": "user@example.com"
+}
+```
+
+_Response:_
+```json
+{
+  "message": "Đã gửi OTP, vui lòng kiểm tra thư rác nếu không thấy, OTP có giới hạn 5p"
+}
+```
+
+### Verify OTP
+**Endpoint:** `POST /api/OTP/verify`
+- **Description:** Xác thực mã OTP do người dùng nhập.
+- **Request Body:**
+  ```json
+  {
+    "gmail": "string",
+    "OTP": "string"
+  }
+  ```
+- **Response:** Trả về kết quả xác thực OTP hoặc lỗi server.
+
+**Example:**
+```
+POST http://localhost:3000/api/OTP/verify
+```
+_Request Body:_
+```json
+{
+  "gmail": "user@example.com",
+  "OTP": "123456"
+}
+```
+
+_Response:_
+```json
+{
+  "message": "OTP đúng"
+}
+```
