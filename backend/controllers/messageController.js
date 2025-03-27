@@ -4,6 +4,7 @@ const MessageType=require('../models/messageType');
 const User = require('../models/User');
 const fs=require('fs');
 const cloudinary=require('../configs/cloudinaryConfig');
+const Group = require('../models/Group');
 
 /**
  * Lấy tất cả tin nhắn giữa hai người dùng trong chat đơn
@@ -32,6 +33,33 @@ const getAllMessageInSingleChat=async(req,res)=>{
     } catch (error) {
         console.log('lỗi khi get all message trong chat đơn');
         res.status(500).json({message:`Lỗi server: ${error}`});
+    }
+}
+
+/**
+ * Lấy tất cả tin nhắn trong nhóm
+ * 
+ * @async
+ * @route   GET /api/message/group/:groupID
+ * @method  getAllMessageInGroupChat
+ * @param   {string} req.params.groupID - ID của nhóm
+ * @returns {JSON} Danh sách tin nhắn nhóm hoặc lỗi server
+ */
+const getAllMessageInGroupChat=async(req,res)=>{
+    try {
+        const {groupID}=req.params;
+        if(!groupID)
+            return res.status(404).json({message:"thiếu groupID"});
+
+        const checkGroup=await Group.findOne({groupID});
+        if(!checkGroup)
+            return res.status(403).json({message:"không tìm thấy group"});
+
+        const messageList=await Message.find({groupID}).sort({createdAt:1});
+
+        res.status(200).json(messageList);
+    } catch (error) {
+        res.status(500).json({message:"Lỗi server",error:error});
     }
 }
 
