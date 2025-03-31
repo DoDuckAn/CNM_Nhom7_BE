@@ -57,7 +57,6 @@ const generateRefreshToken=async(userID)=>{
 
 const loginUser=async(req,res)=>{
     try {
-        console.log("body:",req.body);
         const{phoneNumber,password}=req.body;
         const user=await User.findOne({phoneNumber});
         if(!user)

@@ -9,6 +9,7 @@ const userSchema=new mongoose.Schema({
     DOB:{type:Date,required:true},
     conversationsID:[{type:String,default:[]}],//danh sách userID những người đã từng nhắn tin với user
     groupsID:[{type:String,default:[]}],//danh sách nhóm mà user tham gia
+    contacts:{type:[{userID:{type:String,required:true},username:{type:String,required:true}}]}
 });
 
 const User=mongoose.model("User",userSchema);

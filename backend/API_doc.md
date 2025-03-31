@@ -127,6 +127,63 @@ _Response_:
 }
 ```
 
+### Get All Contacts
+**Endpoint:** `GET /api/user/:userID/contacts`
+- **Description:** Lấy danh bạ của người dùng.
+- **Request Parameters:**
+  - `userID` _(string)_: ID của người dùng
+- **Response:** Trả về danh bạ hoặc thông báo lỗi.
+
+**Example:**
+```
+GET http://localhost:3000/api/user/921946bf/contacts
+```
+_Response:_
+```json
+[
+  {
+    "userID": "456",
+    "username": "John Doe"
+  },
+  {
+    "userID": "789",
+    "username": "Jane Smith"
+  }
+]
+```
+
+---
+
+### Add Contact
+**Endpoint:** `POST /api/user/:userID/contacts`
+- **Description:** Thêm một liên hệ mới vào danh bạ của người dùng.
+- **Request Parameters:**
+  - `userID` _(string)_: ID của người dùng đang thêm vào danh bạ.
+- **Request Body:**
+  ```json
+  {
+    "contactID": "string"
+  }
+  ```
+- **Response:** Trả về thông báo thêm thành công hoặc lỗi.
+
+**Example:**
+```
+PUT http://localhost:3000/api/user/921946bf/contacts
+```
+_Request Body:_
+```json
+{
+  "contactID": "456"
+}
+```
+_Response:_
+```json
+{
+  "message": "Thêm contact thành công",
+}
+```
+
 ## Message API
 
 ### Get All Chats of a User

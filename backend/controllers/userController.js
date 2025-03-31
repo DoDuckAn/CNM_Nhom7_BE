@@ -43,6 +43,7 @@ const findUserByUserID=async(req,res)=>{
 /**
  * Thêm user mới
  *
+ * async
  * @route   POST /api/user
  * @method  addUser
  * @param   {Object} req - Request từ client
@@ -78,6 +79,7 @@ const addUser=async(req,res)=>{
 /**
  * Đổi mật khẩu người dùng
  *
+ * async
  * @route   PUT /api/user/changePassword/:phoneNumber
  * @method  changePassword
  * @param   {Object} req - Request từ client
@@ -113,6 +115,7 @@ const changePassword = async (req, res) => {
 /**
  * Cập nhật thông tin người dùng
  *
+ * async
  * @route   PUT /api/user
  * @method  updateUserInfo
  * @param   {Object} req - Request từ client
@@ -140,4 +143,78 @@ const updateUserInfo=async(req,res)=>{
         res.status(500).json({ message: "Lỗi server", error: error.message });
     }
 }
-module.exports={getAllUsers,addUser,findUserByUserID,changePassword,updateUserInfo};
+
+/**
+ * Lấy danh bạ của người dùng
+ *
+ * async
+ * @route   GET /api/user/:userID/contacts
+ * @method  getAllContacts
+ * @param   {Object} req - Request từ client
+ * @param   {string} req.params.userID - ID của người dùng cần lấy danh bạ
+ * @returns {JSON} Trả về danh bạ hoặc thông báo lỗi
+ */
+const getAllContacts=async(req,res)=>{
+    try {
+        const {userID}=req.params;
+        const user=await User.findOne({userID});
+        if(!user){
+            console.log("không tìm thấy userID");
+            return res.status(400).json({message:"không tìm thấy userID"})           
+        }
+
+        res.status(200).json(user.contacts);
+    } catch (error) {
+        console.log("lỗi server");
+        res.status(500).json({message:"Lỗi server"});
+    }
+}
+
+/**
+ * Thêm một liên hệ mới vào danh bạ của người dùng
+ *
+ * async
+ * @route   PUT /api/user/:userID/contacts
+ * @method  addContacts
+ * @param   {Object} req - Request từ client
+ * @param   {string} req.params.userID - ID của người dùng
+ * @param   {string} req.body.contactID - ID của người cần thêm vào danh bạ
+ * @returns {JSON} Trả về thông báo thêm thành công hoặc lỗi
+ */
+const addContacts=async(req,res)=>{
+    try {
+        const {userID}=req.params;
+        const {contactID}=req.body;
+        const user=await User.findOne({userID});
+
+        if(!contactID){
+            console.log("thiếu contactID");
+            return res.status(400).json({message:"thiếu contactID"})   
+        }
+
+        if(!user){
+            console.log("không tìm thấy userID");
+            return res.status(404).json({message:"không tìm thấy userID"})           
+        }
+
+        if(user.contacts.some(contact=>contact.userID===contactID)){
+            console.log("contact đã tồn tại");
+            return res.status(400).json({message:"contact đã tồn tại"})   
+        }
+
+        const newContact=await User.findOne({userID:contactID});
+        if(!newContact){
+            console.log("không tìm thấy contact");
+            return res.status(404).json({message:"không tìm thấy contact"}) 
+        }
+        
+        user.contacts.push({userID:newContact.userID,username:newContact.username});
+        await user.save();
+        res.status(200).json({message:"Thêm contact thành công"});
+    } catch (error) {
+        console.log("lỗi server");
+        res.status(500).json({message:"Lỗi server"});
+    }
+}
+
+module.exports={getAllUsers,addUser,findUserByUserID,changePassword,updateUserInfo,getAllContacts,addContacts};
