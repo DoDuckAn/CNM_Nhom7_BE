@@ -1,11 +1,42 @@
-const mongoose=require('mongoose');
+const { dynamoDB } = require("../utils/aws-helper");
 
-const OTPCodeSchema = new mongoose.Schema({
-    gmail: { type: String, required: true, index: true },
-    OTP: { type: String, required: true },
-    createdAt: { type: Date, default: Date.now, expires: '5m' } 
-});
+const TABLE_NAME = 'OTPCodes';
 
-const OTPCode=mongoose.model('OTPCode',OTPCodeSchema);
+const OTPCodeModel = {
+  async saveOTP(gmail, hashedOTP) {
+    const now = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
+    const expireAt = now + 300; // 5 minutes
 
-module.exports=OTPCode;
+    const params={
+      TableName: TABLE_NAME,
+      Item: {
+        gmail,
+        OTP: hashedOTP,
+        expireAt
+      }
+    };
+    await dynamoDB.put(params).promise();
+  },
+
+  async getOTPByGmail(gmail) {
+    const params = {
+      TableName: TABLE_NAME,
+      Key: {
+        gmail
+      }
+    };
+
+    const result = await dynamoDB.get(params).promise();
+    return result.Item;
+  },
+
+  async deleteOTPByGmail(gmail) {
+    const params={
+      TableName: TABLE_NAME,
+      Key: { gmail }
+    };
+    await dynamoDB.delete(params).promise();
+  }
+};
+
+module.exports = OTPCodeModel;

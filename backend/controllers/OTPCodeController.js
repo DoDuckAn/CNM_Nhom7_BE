@@ -2,6 +2,7 @@ require('dotenv').config();
 const nodemailer = require('nodemailer');
 const bcrypt=require('bcrypt');
 const OTPCode = require('../models/OTPCode');
+const OTPCodeModel = require('../models/OTPCode');
 
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
@@ -35,16 +36,14 @@ const sendOTP=async(req,res)=>{
     const hashedOTP = await bcrypt.hash(OTP, saltRounds);
     
     //kiểm tra xem gmail đã được gửi OTP chưa
-    const checkGmail=await OTPCode.findOne({gmail});
+    const checkGmail=await OTPCodeModel.getOTPByGmail(gmail);
     
     //nếu có rồi thì xóa đi tạo OTP mới
     if(checkGmail){
-        await OTPCode.deleteOne({ gmail });
-        const newOTPCode = new OTPCode({gmail,OTP:hashedOTP});
-        await newOTPCode.save();
+        await OTPCode.deleteOTPByGmail( gmail );
+        await OTPCode.saveOTP(gmail, hashedOTP);
     } else{//chưa có thì tạo OTP mới
-        const newOTPCode=new OTPCode({gmail,OTP:hashedOTP});
-        await newOTPCode.save();
+        await OTPCode.saveOTP(gmail, hashedOTP);
     }
 
     const mailOptions = {
@@ -79,7 +78,7 @@ const sendOTP=async(req,res)=>{
 const verifyOTP=async(req,res)=>{
     try {
         const {gmail,OTP}=req.body;
-        const checkOTP=await OTPCode.findOne({gmail});
+        const checkOTP=await OTPCodeModel.getOTPByGmail(gmail);
         const result=await bcrypt.compare(OTP,checkOTP.OTP);
         
         if(result)
