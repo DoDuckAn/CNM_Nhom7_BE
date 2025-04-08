@@ -1,7 +1,7 @@
 const jwt=require('jsonwebtoken');
-const User = require('../models/User');
-const RefreshToken=require('../models/RefreshToken');
-const bcrypt=require('bcrypt')
+const UserModel = require('../models/User');
+const RefreshTokenModel=require('../models/RefreshToken')
+const bcrypt=require('bcrypt');
 
 require('dotenv').config();
 
@@ -38,8 +38,8 @@ const generateRefreshToken=async(userID)=>{
             expiresIn:'7d'
         }
     );
-
-    await RefreshToken.create({userID,refreshToken});
+    
+    await RefreshTokenModel.create(userID,refreshToken);
     return refreshToken;
 }
 
@@ -58,7 +58,7 @@ const generateRefreshToken=async(userID)=>{
 const loginUser=async(req,res)=>{
     try {
         const{phoneNumber,password}=req.body;
-        const user=await User.findOne({phoneNumber});
+        const user=await UserModel.GetUserByPhone(phoneNumber);
         if(!user)
             return res.status(400).json({message:'số điện thoại chưa được đăng ký'})
         const checkPassword=await bcrypt.compare(password,user.password);
@@ -89,7 +89,7 @@ const newAccessToken=async(req,res)=>{
     if(!refreshToken)
         return res.status(401).json({message:"không có refresh token"});
 
-    const storedRefreshToken=await RefreshToken.findOne({refreshToken});
+    const storedRefreshToken=await RefreshTokenModel.findByToken(refreshToken);
     if (!storedRefreshToken) 
         return res.status(403).json({ message: 'Refresh Token không hợp lệ' });
 
@@ -114,7 +114,7 @@ const newAccessToken=async(req,res)=>{
  */
 const logout=async(req,res)=>{
     const {refreshToken}=req.body;
-    await RefreshToken.deleteOne({refreshToken});
+    await RefreshTokenModel.delete(refreshToken);
     res.status(200).json({message:"đăng xuất thành công"})
 }
 
