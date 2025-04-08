@@ -1,220 +1,117 @@
-const User=require('../models/User')
 const {v4:uuidv4}=require('uuid')
-const bcrypt=require('bcrypt')
+const bcrypt=require('bcrypt');
+const UserModel = require('../models/User');
 
-/**
- * Lấy danh sách tất cả người dùng (ẩn mật khẩu)
- *
- * @route   GET /api/user
- * @method  getAllUsers
- * @returns {JSON} Danh sách user hoặc lỗi server
- */
-const getAllUsers=async(req,res)=>{
-    try {
-        const users=await User.find().select('-password');
-        res.json(users);
-    } catch (error) {
-        res.status(500).json({message:'lỗi server', error: error.message });
-    }
-}
-
-/**
- * Tìm user theo userID
- *
- * @route   GET /api/users/:userID
- * @method  findUserByUserID
- * @param   {Object} req - Request từ client
- * @param   {string} req.params.userID - ID của user cần tìm
- * @returns {JSON} Thông tin user hoặc lỗi server
- */
-const findUserByUserID=async(req,res)=>{
-    try {
-        const userID=req.params.userID;
-        const user=await User.findOne({userID}).select('-password');
-        if(!user)
-            return res.status(404).json({message:`không tìm thấy user có ID ${userID}`});
-        res.status(200).json(user);
-    } catch (error) {
-        console.log('lỗi khi tìm user');
-        res.status(500).json({ message: "Lỗi server", error: error.message });
-    }
-}
-
-/**
- * Thêm user mới
- *
- * async
- * @route   POST /api/user
- * @method  addUser
- * @param   {Object} req - Request từ client
- * @param   {string} req.body.phoneNumber - Số điện thoại của user
- * @param   {string} req.body.password - Mật khẩu của user
- * @param   {string} req.body.username - Tên người dùng
- * @param   {string} req.body.DOB - Ngày sinh của user
- * @returns {JSON} Kết quả thêm user hoặc lỗi server
- */
-const addUser=async(req,res)=>{
-    try {
-        const {phoneNumber,password,username,DOB}=req.body;
-
-        //check sdt trùng
-        const existingPhoneNumber=await User.findOne({phoneNumber});
-        if(existingPhoneNumber){
-            return res.status(400).json({message:'SĐT đã được đăng ký'})
-        }
-        //Tạo userID bằng uuid
-        const userID=uuidv4().split('-')[0]
-        //băm mật khẩu
-        const saltRound=10;
-        const hashedPassword=await  bcrypt.hash(password,saltRound)
-
-        const newUser=new User({userID,phoneNumber,password:hashedPassword,username,accountRole:'USER',DOB})
-        await newUser.save();
-        res.status(201).json('thêm user thành công: '+newUser);
-    } catch (error) {
-        res.status(500).json({message:'lỗi server', error: error.message })
-    }
-}
-
-/**
- * Đổi mật khẩu người dùng
- *
- * async
- * @route   PUT /api/user/changePassword/:phoneNumber
- * @method  changePassword
- * @param   {Object} req - Request từ client
- * @param   {string} req.params.phoneNumber - Số điện thoại của user cần đổi mật khẩu
- * @param   {string} req.body.newPassword - Mật khẩu mới của user
- * @returns {JSON} Thông báo kết quả đổi mật khẩu hoặc lỗi server
- */
-
-const changePassword = async (req, res) => {
-    try {
-        const {phoneNumber} = req.params;
-        const {newPassword} = req.body;
-
-        const user = await User.findOne({ phoneNumber });
-        if (!user) {
-            console.log("Không tìm thấy user khi đổi password");
-            return res.status(404).json({ message: "Không tìm thấy số điện thoại", phoneNumber });
-        }
-
-        const saltRounds = 10;
-        const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
-        user.password = hashedNewPassword;
-        await user.save();
-
-        res.status(200).json({ message: "Đổi mật khẩu thành công" });
-    } catch (error) {
-        console.error("Lỗi khi đổi mật khẩu:", error);
-        res.status(500).json({ message: "Lỗi server", error: error.message });
-    }
+const getAllUsers = async (req, res) => {
+  try {
+    const users = await UserModel.GetAllUsers();
+    const usersWithoutPassword = users.map(({ password, ...rest }) => rest);
+    res.json(usersWithoutPassword);
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
 };
 
+const findUserByUserID = async (req, res) => {
+  try {
+    const { userID } = req.params;
+    const user = await UserModel.GetUserByID(userID);
+    if (!user) return res.status(404).json({ message: `Không tìm thấy user có ID ${userID}` });
+    const { password, ...rest } = user;
+    res.status(200).json(rest);
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+};
 
-/**
- * Cập nhật thông tin người dùng
- *
- * async
- * @route   PUT /api/user
- * @method  updateUserInfo
- * @param   {Object} req - Request từ client
- * @param   {string} req.params.userID - ID của người dùng cần cập nhật
- * @param   {string} req.body.username - Tên người dùng mới
- * @param   {string} req.body.DOB - Ngày sinh mới của người dùng
- * @returns {JSON} Trả về thông báo cập nhật thành công hoặc lỗi server
- */
-const updateUserInfo=async(req,res)=>{
-    try {
-        const {userID}=req.params;
-        const {username,DOB}=req.body;
-        const user=await User.findOneAndUpdate(
-            {userID:userID},
-            {
-                username:username,
-                DOB:DOB
-            },
-            {new:true}
-        );
+const addUser = async (req, res) => {
+  try {
+    const { phoneNumber, password, username, DOB } = req.body;
+    const existingUser = await UserModel.GetUserByPhone(phoneNumber);
+    if (existingUser) return res.status(400).json({ message: 'SĐT đã được đăng ký' });
 
-        res.status(200).json({message:"Đã cập nhật thông tin user",user});
-    } catch (error) {
-        console.log("Lỗi khi upadateUserInfo");
-        res.status(500).json({ message: "Lỗi server", error: error.message });
+    const userID = uuidv4().split('-')[0];
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = {
+      userID,
+      phoneNumber,
+      password: hashedPassword,
+      username,
+      accountRole: 'USER',
+      DOB,
+      conversationsID: [],
+      groupsID: [],
+      contacts: [],
+    };
+
+    await UserModel.CreateUser(newUser);
+    res.status(201).json({ message: 'Thêm user thành công', userID });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+};
+
+const changePassword = async (req, res) => {
+  try {
+    const { phoneNumber } = req.params;
+    const { newPassword } = req.body;
+    const user = await UserModel.GetUserByPhone(phoneNumber);
+    if (!user) return res.status(404).json({ message: 'Không tìm thấy số điện thoại' });
+
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    await UserModel.UpdateUser(user.userID, phoneNumber,{ password: hashedNewPassword });
+    res.status(200).json({ message: 'Đổi mật khẩu thành công' });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+};
+
+const updateUserInfo = async (req, res) => {
+  try {
+    const { userID } = req.params;
+    const { username, DOB } = req.body;
+    const user = await UserModel.GetUserByID(userID);
+    if (!user) return res.status(404).json({ message: 'Không tìm thấy userID' });
+
+    const updatedUser = await UserModel.UpdateUser(userID, user.phoneNumber,{ username, DOB });
+    res.status(200).json({ message: 'Đã cập nhật thông tin user', user: updatedUser });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+};
+
+const getAllContacts = async (req, res) => {
+  try {
+    const { userID } = req.params;
+    const user = await UserModel.GetUserByID(userID);
+    if (!user) return res.status(404).json({ message: 'Không tìm thấy userID' });
+    res.status(200).json(user.contacts || []);
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+};
+
+const addContacts = async (req, res) => {
+  try {
+    const { userID } = req.params;
+    const { contactID } = req.body;
+    if (!contactID) return res.status(400).json({ message: 'Thiếu contactID' });
+
+    const user = await UserModel.GetUserByID(userID);
+    if (!user) return res.status(404).json({ message: 'Không tìm thấy userID' });
+
+    if ((user.contacts || []).some((contact) => contact.userID === contactID)) {
+      return res.status(400).json({ message: 'Contact đã tồn tại' });
     }
-}
 
-/**
- * Lấy danh bạ của người dùng
- *
- * async
- * @route   GET /api/user/:userID/contacts
- * @method  getAllContacts
- * @param   {Object} req - Request từ client
- * @param   {string} req.params.userID - ID của người dùng cần lấy danh bạ
- * @returns {JSON} Trả về danh bạ hoặc thông báo lỗi
- */
-const getAllContacts=async(req,res)=>{
-    try {
-        const {userID}=req.params;
-        const user=await User.findOne({userID});
-        if(!user){
-            console.log("không tìm thấy userID");
-            return res.status(400).json({message:"không tìm thấy userID"})           
-        }
+    const contact = await UserModel.GetUserByID(contactID);
+    if (!contact) return res.status(404).json({ message: 'Không tìm thấy contact' });
 
-        res.status(200).json(user.contacts);
-    } catch (error) {
-        console.log("lỗi server");
-        res.status(500).json({message:"Lỗi server"});
-    }
-}
+    await UserModel.AddContact(userID, { userID: contact.userID, username: contact.username });
+    res.status(200).json({ message: 'Thêm contact thành công' });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+};
 
-/**
- * Thêm một liên hệ mới vào danh bạ của người dùng
- *
- * async
- * @route   PUT /api/user/:userID/contacts
- * @method  addContacts
- * @param   {Object} req - Request từ client
- * @param   {string} req.params.userID - ID của người dùng
- * @param   {string} req.body.contactID - ID của người cần thêm vào danh bạ
- * @returns {JSON} Trả về thông báo thêm thành công hoặc lỗi
- */
-const addContacts=async(req,res)=>{
-    try {
-        const {userID}=req.params;
-        const {contactID}=req.body;
-        const user=await User.findOne({userID});
-
-        if(!contactID){
-            console.log("thiếu contactID");
-            return res.status(400).json({message:"thiếu contactID"})   
-        }
-
-        if(!user){
-            console.log("không tìm thấy userID");
-            return res.status(404).json({message:"không tìm thấy userID"})           
-        }
-
-        if(user.contacts.some(contact=>contact.userID===contactID)){
-            console.log("contact đã tồn tại");
-            return res.status(400).json({message:"contact đã tồn tại"})   
-        }
-
-        const newContact=await User.findOne({userID:contactID});
-        if(!newContact){
-            console.log("không tìm thấy contact");
-            return res.status(404).json({message:"không tìm thấy contact"}) 
-        }
-        
-        user.contacts.push({userID:newContact.userID,username:newContact.username});
-        await user.save();
-        res.status(200).json({message:"Thêm contact thành công"});
-    } catch (error) {
-        console.log("lỗi server");
-        res.status(500).json({message:"Lỗi server"});
-    }
-}
-
-module.exports={getAllUsers,addUser,findUserByUserID,changePassword,updateUserInfo,getAllContacts,addContacts};
+module.exports={getAllUsers,findUserByUserID,addUser,changePassword,updateUserInfo,getAllContacts,addContacts}
