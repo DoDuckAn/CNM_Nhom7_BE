@@ -1,10 +1,40 @@
-const mongoose=require('mongoose');
+const { dynamoDB } = require("../utils/aws-helper");
 
-const GroupSchema=new mongoose.Schema({
-    groupID:{type:String,required:true,index:true,unique:true},
-    groupName:{type:String,required:true},
-    totalMembers:{type:Number,default:3}
-});;
+const TABLE_NAME = 'Groups';
 
-const Group=mongoose.model("Group",GroupSchema);
-module.exports=Group;
+const GroupModel = {
+  async createGroup(groupID, groupName) {
+    const params = {
+      TableName: TABLE_NAME,
+      Item: {
+        groupID,
+        groupName,
+        totalMembers: 1, // mặc định 1 khi tạo
+      },
+    };
+    console.log(params);
+    
+    await dynamoDB.put(params).promise();
+    return params.Item;
+  },
+
+  async findByGroupID(groupID) {
+    const params = {
+      TableName: TABLE_NAME,
+      Key: { groupID },
+    };
+    const data = await dynamoDB.get(params).promise();
+    return data.Item || null;
+  },
+
+  async deleteGroup(groupID) {
+    const params = {
+      TableName: TABLE_NAME,
+      Key: { groupID },
+    };
+    await dynamoDB.delete(params).promise();
+    return true;
+  },
+};
+
+module.exports = GroupModel;
