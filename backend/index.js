@@ -11,11 +11,12 @@ const groupRoutes=require('./routes/groupRoutes')
 const authRoutes=require('./routes/authRoutes')
 const OTPCodeRoutes=require('./routes/OTPRoute')
 const Message=require('./models/Message')
-const User = require('./models/User')
 const MessageController=require('./controllers/messageController')
 const GroupController=require('./controllers/groupController')
 const fs = require("fs");
 const path = require("path");
+const UserModel = require('./models/User')
+const MemberModel = require('./models/Member')
 
 const app=express()
 const server=http.createServer(app)
@@ -108,13 +109,13 @@ io.on("connection",async (socket)=>{
             // Trường hợp chat đơn
             if (!groupID) {
                 // Kiểm tra danh sách bạn chat
-                const sender = await User.findOne({ userID: senderID });
-                const receiver = await User.findOne({ userID: receiverID });
-                if (!sender.conversationsID.includes(receiverID)) {
-                    sender.conversationsID.push(receiverID);
-                    await sender.save();
-                    receiver.conversationsID.push(senderID);
-                    await receiver.save();
+                const sender = await UserModel.GetUserByID(senderID);
+                const receiver = await UserModel.GetUserByID(receiverID);
+                if (!sender.conversationsID?.includes(receiverID)) {
+                    sender.conversationsID = [...(sender.conversationsID || []), receiverID];
+                    await UserModel.UpdateUser(senderID, { conversationsID: sender.conversationsID });
+                    receiver.conversationsID = [...(receiver.conversationsID || []), senderID];
+                    await UserModel.UpdateUser(receiverID, { conversationsID: receiver.conversationsID });
                 }
 
                 // Gọi hàm saveMessage, truyền đường dẫn file nếu có
@@ -259,7 +260,7 @@ io.on("connection",async (socket)=>{
 
     socket.on("deleteGroup",async(userID,groupID,callback)=>{
         //kiểm tra xem người xóa group có phải LEADER không
-        const leader = await Member.findOne({ userID, groupID });
+        const leader = await MemberModel.findByUserAndGroup(userID, groupID);
         if (!leader || leader.memberRole!=="LEADER") {
              if(callback) callback("Bạn không có quyền xóa group");
              return;
