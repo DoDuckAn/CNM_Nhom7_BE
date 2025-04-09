@@ -1,6 +1,6 @@
 const { dynamoDB } = require("../utils/aws-helper");
 
-const TABLE_NAME = 'Messages'; // bạn có thể đổi tên bảng nếu cần
+const TABLE_NAME = 'Messages';
 
 const MessageModel = {
   /**
@@ -9,7 +9,7 @@ const MessageModel = {
   async saveMessage({
     senderID,
     receiverID,
-    groupID = null,
+    groupID = "NONE",
     seenStatus = [],
     deleteStatus = false,
     recallStatus = false,

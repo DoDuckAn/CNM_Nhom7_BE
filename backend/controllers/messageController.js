@@ -1,9 +1,9 @@
 const { default: mongoose } = require('mongoose');
-const Message=require('../models/Message');
-const MessageType=require('../models/MessageType');
+const Message = require('../models/Message');
+const MessageType = require('../models/MessageType');
 const User = require('../models/User');
-const fs=require('fs');
-const cloudinary=require('../configs/cloudinaryConfig');
+const fs = require('fs');
+const cloudinary = require('../configs/cloudinaryConfig');
 const Group = require('../models/Group');
 const MessageModel = require('../models/Message');
 const GroupModel = require('../models/Group');
@@ -21,18 +21,18 @@ const { uploadFileToS3, deleteLocalFile } = require('../utils/aws-helper');
  * @param   {string} req.params.userID2 - ID của người dùng 2
  * @returns {JSON} Danh sách tin nhắn giữa 2 user hoặc lỗi server
  */
-const getAllMessageInSingleChat=async(req,res)=>{
+const getAllMessageInSingleChat = async (req, res) => {
     try {
-        const {userID1,userID2}=req.params;
-        if(!userID1||!userID2){
+        const { userID1, userID2 } = req.params;
+        if (!userID1 || !userID2) {
             console.log('thiếu userid khi get all message trong chat đơn');
-            return res.status(404).json({message:'thiếu userid'});            
+            return res.status(404).json({ message: 'thiếu userid' });            
         }
-        const messageList=await MessageModel.getMessagesBetweenUsers(userID1,userID2);
+        const messageList = await MessageModel.getMessagesBetweenUsers(userID1, userID2);
         res.status(200).json(messageList);
     } catch (error) {
         console.log('lỗi khi get all message trong chat đơn');
-        res.status(500).json({message:`Lỗi server: ${error}`});
+        res.status(500).json({ message: `Lỗi server: ${error}` });
     }
 }
 
@@ -45,20 +45,20 @@ const getAllMessageInSingleChat=async(req,res)=>{
  * @param   {string} req.params.groupID - ID của nhóm
  * @returns {JSON} Danh sách tin nhắn nhóm hoặc lỗi server
  */
-const getAllMessageInGroupChat=async(req,res)=>{
+const getAllMessageInGroupChat = async (req, res) => {
     try {
-        const {groupID}=req.params;
-        if(!groupID)
-            return res.status(404).json({message:"thiếu groupID"});
+        const { groupID } = req.params;
+        if (!groupID)
+            return res.status(404).json({ message: "thiếu groupID" });
 
-        const checkGroup=await GroupModel.findByGroupID(groupID);
-        if(!checkGroup)
-            return res.status(403).json({message:"không tìm thấy group"});
+        const checkGroup = await GroupModel.findByGroupID(groupID);
+        if (!checkGroup)
+            return res.status(403).json({ message: "không tìm thấy group" });
 
-        const messageList=await MessageModel.getMessagesInGroup(groupID);
+        const messageList = await MessageModel.getMessagesInGroup(groupID);
         res.status(200).json(messageList);
     } catch (error) {
-        res.status(500).json({message:"Lỗi server",error:error});
+        res.status(500).json({ message: "Lỗi server", error: error });
     }
 }
 
@@ -71,18 +71,18 @@ const getAllMessageInGroupChat=async(req,res)=>{
  * @param   {string} req.params.userID - ID của người dùng
  * @returns {JSON} Danh sách các cuộc trò chuyện và tin nhắn tương ứng hoặc lỗi server
  */
-const getAllUserMessage=async(req,res)=>{
+const getAllUserMessage = async (req, res) => {
     try {
         //tìm user
-        const {userID}=req.params;
-        if(!userID){
+        const { userID } = req.params;
+        if (!userID) {
             console.log('thiếu userid khi getAllUserMessage trong chat đơn');
-            return res.status(404).json({message:'thiếu userID'});            
+            return res.status(404).json({ message: 'thiếu userID' });            
         }
-        const user=await UserModel.GetUserByID(userID);
-        if(!user){
-            console.log('không tìm thấy user với id:',userID);
-            return res.status(404).json({message:'không tìm thấy user'});
+        const user = await UserModel.GetUserByID(userID);
+        if (!user) {
+            console.log('không tìm thấy user với id:', userID);
+            return res.status(404).json({ message: 'không tìm thấy user' });
         }
         
         const conversationIDs = user.conversationsID || [];
@@ -115,7 +115,6 @@ const getAllUserMessage=async(req,res)=>{
  * @param   {string} messageID - ID duy nhất của tin nhắn.
  * @param   {string|null} filePath - Đường dẫn file tạm thời trên server (nếu có file).
  */
-
 const saveMessage = async (senderID, receiverID, groupID, messageTypeID, context, messageID, filePath) => {
     try {
         const checkMessageType = await MessageTypeModel.findById(messageTypeID);
@@ -125,30 +124,30 @@ const saveMessage = async (senderID, receiverID, groupID, messageTypeID, context
         }
 
         let finalContext = context;
-        // Nếu có file, upload lên Cloudinary
+        // Nếu có file, upload lên S3
         if (filePath && ["type2", "type3", "type5"].includes(messageTypeID)) {
-            const uploadURL=await uploadFileToS3(filePath);
-            finalContext=uploadURL; 
+            const uploadURL = await uploadFileToS3(filePath);
+            finalContext = uploadURL; 
             // Xóa file tạm sau khi upload
             await deleteLocalFile(filePath);
         }
 
-        // Lưu tin nhắn vào DB
+        // Lưu tin nhắn vào DB, gán groupID mặc định là "NONE" nếu null
         const newMessage = { 
             messageID,
             senderID, 
             receiverID, 
-            groupID,
-            seenStatus:[],
-            deleteStatus:false,
-            recallStatus:false,
+            groupID: groupID || "NONE", // Sửa ở đây: đảm bảo groupID không là null
+            seenStatus: [],
+            deleteStatus: false,
+            recallStatus: false,
             messageTypeID, 
             context: finalContext,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
         };
         
-        await MessageModel.saveMessage(newMessage)
+        await MessageModel.saveMessage(newMessage);
         return newMessage;
     } catch (error) {
         console.log('Lỗi khi saveMessage:', error);
@@ -156,4 +155,4 @@ const saveMessage = async (senderID, receiverID, groupID, messageTypeID, context
     }
 };
 
-module.exports={getAllMessageInSingleChat,saveMessage,getAllUserMessage};
+module.exports = { getAllMessageInSingleChat, saveMessage, getAllUserMessage };
