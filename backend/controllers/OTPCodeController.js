@@ -47,21 +47,21 @@ const sendOTP=async(req,res)=>{
     }
 
     const mailOptions = {
-    from: process.env.NODE_MAILER_GMAIL,
-    to: gmail,
-    subject: 'CloneZaloApp: mã xác thực OTP',
-    text: OTP
-  };
+      from: process.env.NODE_MAILER_GMAIL,
+      to: gmail,
+      subject: 'CloneZaloApp: mã xác thực OTP',
+      text: OTP
+    };
   
-  transporter.sendMail(mailOptions, function(error, info){
-    if (error) {
-      console.log('Error:', error);
-      return res.status(500).json({message:'Lỗi khi gửi OTP',error:error})
-    } else {
-      console.log('Email sent: ' + info.response);
-      res.status(200).json({message:"Đã gửi OTP, vui lòng kiểm tra thư rác nếu không thấy, OTP có giới hạn 5p"});
-    }
-  });
+    transporter.sendMail(mailOptions, function(error, info){
+      if (error) {
+        console.log('Error:', error);
+        return res.status(500).json({message:'Lỗi khi gửi OTP',error:error})
+      } else {
+        console.log('Email sent: ' + info.response);
+        res.status(200).json({message:"Đã gửi OTP, vui lòng kiểm tra thư rác nếu không thấy, OTP có giới hạn 5p"});
+      }
+    });
 }
 
 /**
@@ -91,4 +91,4 @@ const verifyOTP=async(req,res)=>{
     }
 }
 
-module.exports={sendOTP,verifyOTP};
+module.exports={sendOTP,verifyOTP,transporter};
