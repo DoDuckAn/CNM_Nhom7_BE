@@ -5,6 +5,11 @@ const User = require('../models/User');
 const fs=require('fs');
 const cloudinary=require('../configs/cloudinaryConfig');
 const Group = require('../models/Group');
+const MessageModel = require('../models/Message');
+const GroupModel = require('../models/Group');
+const UserModel = require('../models/User');
+const MessageTypeModel = require('../models/MessageType');
+const { uploadFileToS3, deleteLocalFile } = require('../utils/aws-helper');
 
 /**
  * Lấy tất cả tin nhắn giữa hai người dùng trong chat đơn
@@ -23,12 +28,7 @@ const getAllMessageInSingleChat=async(req,res)=>{
             console.log('thiếu userid khi get all message trong chat đơn');
             return res.status(404).json({message:'thiếu userid'});            
         }
-        const messageList=await Message.find({
-            $or:[
-                {senderID:userID1,receiverID:userID2},
-                {senderID:userID2,receiverID:userID1}
-            ]
-        }).sort({createdAt:1});
+        const messageList=await MessageModel.getMessagesBetweenUsers(userID1,userID2);
         res.status(200).json(messageList);
     } catch (error) {
         console.log('lỗi khi get all message trong chat đơn');
@@ -51,12 +51,11 @@ const getAllMessageInGroupChat=async(req,res)=>{
         if(!groupID)
             return res.status(404).json({message:"thiếu groupID"});
 
-        const checkGroup=await Group.findOne({groupID});
+        const checkGroup=await GroupModel.findByGroupID(groupID);
         if(!checkGroup)
             return res.status(403).json({message:"không tìm thấy group"});
 
-        const messageList=await Message.find({groupID}).sort({createdAt:1});
-
+        const messageList=await MessageModel.getMessagesInGroup(groupID);
         res.status(200).json(messageList);
     } catch (error) {
         res.status(500).json({message:"Lỗi server",error:error});
@@ -80,40 +79,22 @@ const getAllUserMessage=async(req,res)=>{
             console.log('thiếu userid khi getAllUserMessage trong chat đơn');
             return res.status(404).json({message:'thiếu userID'});            
         }
-        const user=await User.findOne({userID});
+        const user=await UserModel.GetUserByID(userID);
         if(!user){
             console.log('không tìm thấy user với id:',userID);
             return res.status(404).json({message:'không tìm thấy user'});
         }
         
-        //lấy danh sách conversationsID
-        const {conversationsID}=user;
-        if(!conversationsID||conversationsID.length===0){
-            console.log('user chưa chat với ai');
-            return res.status(200).json([]);
-        }
-        //lấy thông tin cơ bản của các conversations
-        const conversationsInfo=await Promise.all(
-            conversationsID.map(async(ID)=>{
-                const conversationInfo=await User.findOne({userID:ID}).select("userID username");
-                return conversationInfo;
-            })
-        )
-        //lấy các message giữa user và các conversations
-        const ConversationsAndMessages=await Promise.all(
-            conversationsInfo.map(async (conversation)=>{
+        const conversationIDs = user.conversationsID || [];
+        const ConversationsAndMessages = await Promise.all(conversationIDs.map(async (id) => {
+            const partner = await UserModel.GetUserByID(id);
+            const messages = await MessageModel.getMessagesBetweenUsers(userID, id);
+            return {
+                conversation: { userID: partner?.userID, username: partner?.username },
+                messages
+            };
+        }));
 
-                const userMessages=await Message.find({
-                    $or:[
-                        {senderID:userID,receiverID:conversation.userID},
-                        {senderID:conversation.userID,receiverID:userID}
-                    ]
-                }).sort({createdAt:1});
-
-                return {conversation:conversation,messages:userMessages};
-            })
-        )
-        
         res.status(200).json(ConversationsAndMessages);
     } catch (error) {
         console.error("Lỗi khi getAllUserMessage:", error);
@@ -137,7 +118,7 @@ const getAllUserMessage=async(req,res)=>{
 
 const saveMessage = async (senderID, receiverID, groupID, messageTypeID, context, messageID, filePath) => {
     try {
-        const checkMessageType = await MessageType.findOne({ typeID: messageTypeID });
+        const checkMessageType = await MessageTypeModel.findById(messageTypeID);
         if (!checkMessageType) {
             console.log('Không tìm thấy messageTypeID phù hợp');
             throw new Error("Loại tin nhắn không hợp lệ");
@@ -146,37 +127,28 @@ const saveMessage = async (senderID, receiverID, groupID, messageTypeID, context
         let finalContext = context;
         // Nếu có file, upload lên Cloudinary
         if (filePath && ["type2", "type3", "type5"].includes(messageTypeID)) {
-            let result;
-            if (messageTypeID === "type2") {
-                result = await cloudinary.uploader.upload(filePath, { folder: "CNM_ZaloApp" });
-            } else if (messageTypeID === "type3") {
-                result = await cloudinary.uploader.upload(filePath, { folder: "CNM_ZaloApp", resource_type: "video" });
-            } else {
-                result = await cloudinary.uploader.upload(filePath, { folder: "CNM_ZaloApp", resource_type: "raw" });
-            }
+            const uploadURL=await uploadFileToS3(filePath);
+            finalContext=uploadURL; 
             // Xóa file tạm sau khi upload
-            try {
-                if (fs.existsSync(filePath)) {
-                    console.log("File tồn tại, tiến hành xóa...");
-                    await fs.promises.unlink(filePath);
-                    console.log("File đã bị xóa.");
-                } else {
-                    console.log("File không tồn tại:", filePath);
-                }                
-            } catch (err) {
-                console.log('File chưa được xóa, lỗi khi xóa file tạm:', err);
-            }        
-
-            //gán link cloudinary vào context
-            finalContext = result.secure_url;
+            await deleteLocalFile(filePath);
         }
 
         // Lưu tin nhắn vào DB
-        const newMessage = new Message({ senderID, receiverID, groupID, messageTypeID, context: finalContext, messageID });
-        const response = await newMessage.save();
-        if (!response) 
-            throw new Error("Lưu tin nhắn thất bại");
-
+        const newMessage = { 
+            messageID,
+            senderID, 
+            receiverID, 
+            groupID,
+            seenStatus:[],
+            deleteStatus:false,
+            recallStatus:false,
+            messageTypeID, 
+            context: finalContext,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+        };
+        
+        await MessageModel.saveMessage(newMessage)
         return newMessage;
     } catch (error) {
         console.log('Lỗi khi saveMessage:', error);

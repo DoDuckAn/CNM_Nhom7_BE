@@ -3,20 +3,19 @@ require('dotenv').config()
 const cors=require('cors')
 const http=require('http')
 const {Server}=require('socket.io')
-const connectDB = require('./database/connect')
 const userRoutes=require('./routes/userRoutes')
 const messageTypeRoutes=require('./routes/messageTypeRoutes')
 const messageRoutes=require('./routes/messageRoutes')
 const groupRoutes=require('./routes/groupRoutes')
 const authRoutes=require('./routes/authRoutes')
 const OTPCodeRoutes=require('./routes/OTPRoute')
-const Message=require('./models/Message')
 const MessageController=require('./controllers/messageController')
 const GroupController=require('./controllers/groupController')
 const fs = require("fs");
 const path = require("path");
 const UserModel = require('./models/User')
 const MemberModel = require('./models/Member')
+const MessageModel = require('./models/Message')
 
 const app=express()
 const server=http.createServer(app)
@@ -37,8 +36,6 @@ app.use('/api/message',messageRoutes)
 app.use('/api/group',groupRoutes)
 app.use('/api/auth',authRoutes)
 app.use('/api/OTP',OTPCodeRoutes)
-
-connectDB();
 
 io.use((socket,next)=>{
     const token=socket.handshake.auth.token;
@@ -67,7 +64,7 @@ io.on("connection",async (socket)=>{
             const { senderID, receiverID, groupID, messageTypeID, context, messageID, file } = message;
 
             // Kiểm tra tin nhắn đã tồn tại chưa
-            const checkMessageID = await Message.findOne({ messageID });
+            const checkMessageID = await MessageModel.getMessageByID(messageID);
             if (checkMessageID) {
                 console.log('Tin nhắn buffer đã tồn tại:', messageID);
                 if (callback) callback("Tin nhắn đã tồn tại");
@@ -146,7 +143,7 @@ io.on("connection",async (socket)=>{
     socket.on('seenMessage',async(messageID,seenUserID,callback)=>{
         try {
             //tìm message
-            const message=await Message.findOne({messageID});
+            const message=await MessageModel.getMessageByID(messageID);
             if(!message){
                 console.log("không tìm thấy tin nhắn");
                 callback("không tìm thấy tin nhắn");
@@ -159,27 +156,103 @@ io.on("connection",async (socket)=>{
                 if (callback) callback("seenUserID đã tổn tại trong seenStatus")
                 return;
             }
+            // Thêm seenUserID
+            const newSeenStatus = [...message.seenStatus, seenUserID];
+            await MessageModel.updateMessage(messageID, {
+                seenStatus: newSeenStatus
+            });
 
             //trường hợp chat đơn
             if(!message.groupID){
-                message.seenStatus.push(seenUserID);
-                await message.save();
-
                 io.to(message.senderID).to(message.receiverID).emit("updateSingleChatSeenStatus",(messageID));
                 if (callback) callback("Đã cập nhật seenStatus chat đơn");
             }
             //trường hợp chat nhóm
             else{
-                message.seenStatus.push(seenUserID);
-                await message.save();
-
                 io.to(message.groupID).emit("updateGroupChatSeenStatus",(messageID,seenUserID));
                 if (callback) callback("Đã cập nhật seenStatus chat nhóm");
             }
         } catch (error) {
-            console.log("Lỗi khi on seenMessage:",error);            
+            console.log("Lỗi khi on seenMessage:",error);
+            if (callback) callback("Lỗi server khi cập nhật seenStatus");   
         }   
     })
+
+    socket.on('deleteMessage', async (messageID, userID, callback) => {
+        try {
+            const message = await MessageModel.getMessageByID(messageID);
+            if (!message) {
+                console.log("Không tìm thấy tin nhắn");
+                if (callback) callback("Không tìm thấy tin nhắn");
+                return;
+            }
+      
+            // Nếu đã bị đánh dấu xóa rồi thì thôi
+            if (message.deleteStatus === true) {
+            if (callback) callback("Tin nhắn đã bị xóa trước đó");
+                return;
+            }
+      
+            // Cập nhật trạng thái xóa
+            await MessageModel.updateMessage(messageID, {
+                deleteStatus: true,
+            });
+      
+            // Gửi emit đến user tương ứng
+            if (message.groupID) {
+                io.to(message.groupID).emit("deletedGroupMessage", messageID);
+            } else {
+                io.to(message.senderID).to(message.receiverID).emit("deletedSingleMessage", messageID);
+            }
+      
+            if (callback) callback("Đã xóa tin nhắn thành công");
+        } catch (error) {
+            console.error("Lỗi khi xử lý deleteMessage:", error);
+            if (callback) callback("Lỗi server khi xóa tin nhắn");
+        }
+    });
+
+    socket.on('recallMessage', async (messageID, userID, callback) => {
+        try {
+            const message = await MessageModel.getMessageByID(messageID);
+            if (!message) {
+                console.log("Không tìm thấy tin nhắn");
+                if (callback) callback("Không tìm thấy tin nhắn");
+                return;
+            }
+      
+            // Chỉ cho phép người gửi thu hồi
+            if (message.senderID !== userID) {
+                console.log("Người dùng không có quyền thu hồi tin nhắn");
+                if (callback) callback("Bạn không có quyền thu hồi tin nhắn này");
+                return;
+            }
+      
+            // Nếu đã thu hồi rồi thì thôi
+                if (message.recallStatus === true) {
+                if (callback) callback("Tin nhắn đã được thu hồi trước đó");
+                return;
+            }
+      
+            // Cập nhật trạng thái recall
+            await MessageModel.updateMessage(messageID, {
+                recallStatus: true
+            });
+      
+            // Emit sự kiện về phía client để ẩn tin nhắn
+            if (message.groupID) {
+                io.to(message.groupID).emit("recalledGroupMessage", messageID);
+            } else {
+                io.to(message.senderID).to(message.receiverID).emit("recalledSingleMessage", messageID);
+            }
+        
+            if (callback) callback("Thu hồi tin nhắn thành công");
+        } catch (error) {
+            console.error("Lỗi khi xử lý recallMessage:", error);
+            if (callback) callback("Lỗi server khi thu hồi tin nhắn");
+        }
+    });
+      
 
     socket.on("joinGroup",async(userID,groupID,callback)=>{
         //gọi hàm joinGroup để xử lý

@@ -15,7 +15,7 @@ const fileFilter = (req, file, callback) => {
 // Cấu hình lưu trữ tạm thời trên server
 const storage = multer.diskStorage({
     destination: (req, file, callback) => {
-        callback(null, "uploads/"); // Lưu file tạm trước khi upload lên Cloudinary
+        callback(null, "uploads/"); // Lưu file tạm trước khi upload lên S3
     },
     filename: (req, file, callback) => {
         callback(null, Date.now() + "-" + file.originalname); // Tạo tên file không trùng lặp
