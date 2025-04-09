@@ -39,7 +39,8 @@ _Response:_
     "phoneNumber": "string",
     "password": "string",
     "username": "string",
-    "DOB": "string"
+    "DOB": "string",
+    "gmail": "string"
   }
   ```
 - **Response:** Trả về thông tin user vừa tạo.
@@ -54,7 +55,9 @@ _Request Body_:
   "phoneNumber": "0123456789",
   "password": "securepassword",
   "username": "John Doe",
-  "DOB": "2000-01-01"
+  "DOB": "2000-01-01",
+  "gmail": "example@gmail.com",
+  ...
 }
 ```
 
@@ -181,6 +184,69 @@ _Response:_
 ```json
 {
   "message": "Thêm contact thành công",
+}
+```
+
+### Reset Password
+**Endpoint:** `POST /api/user/resetPassword/:phoneNumber`
+- **Description:** Reset mật khẩu người dùng, tạo mật khẩu mới ngẫu nhiên và gửi qua Gmail.
+- **Request Parameters:**  
+  - `phoneNumber` _(string)_: Số điện thoại của người dùng cần reset mật khẩu.  
+- **Response:** Trả về thông báo gửi mật khẩu mới qua Gmail hoặc lỗi.
+
+**Example:**
+```
+POST http://localhost:3000/api/user/resetPassword/0123456789
+```
+_Response (Success):_
+```json
+{
+  "message": "Đã gửi mk mới, vui lòng kiểm tra gmail để nhận mật khẩu mới"
+}
+```
+_Response (Not Found):_
+```json
+{
+  "message": "Không tìm thấy số điện thoại"
+}
+```
+_Response (Error):_
+```json
+{
+  "message": "Lỗi khi gửi mk mới",
+  "error": "Chi tiết lỗi..."
+}
+```
+
+---
+
+### Update User Avatar
+**Endpoint:** `PUT /api/user/:userID/avatar`
+- **Description:** Upload ảnh avatar mới lên S3 và cập nhật avatar cho người dùng.
+- **Request Parameters:**  
+  - `userID` _(string)_: ID của người dùng cần cập nhật avatar.  
+- **Request Body (Form-Data):**
+  - `avatar` _(file)_: File ảnh cần upload (image/jpeg, image/png, ...).
+- **Response:** Trả về thông báo cập nhật thành công và thông tin user mới.
+
+**Example:**
+```
+PUT http://localhost:3000/api/user/user123/avatar
+```
+_Form-Data:_
+```
+Key: avatar
+Value: (chọn file ảnh)
+```
+_Response:_
+```json
+{
+  "message": "Đã cập nhật avatar user",
+  "user": {
+    "userID": "user123",
+    "avatar": "https://s3.amazonaws.com/bucket-name/avatar123.jpg",
+    ...
+  }
 }
 ```
 
