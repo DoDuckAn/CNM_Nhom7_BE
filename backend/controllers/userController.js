@@ -140,6 +140,17 @@ const addContacts = async (req, res) => {
   }
 };
 
+ const getGmailByPhoneNumber=async(req,res)=>{
+  try {
+    const {phoneNumber}=req.params;
+    const user=await UserModel.GetUserByPhone(phoneNumber);
+    if(!user) return res.status(404).json({message:'Không tìm thấy số điện thoại'});
+
+    res.status(200).json({gmail:user.gmail});
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+}
 
 const resetPassword=async(req,res)=>{
   try {
@@ -173,4 +184,4 @@ const resetPassword=async(req,res)=>{
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 }
-module.exports={getAllUsers,findUserByUserID,addUser,changePassword,updateUserInfo,getAllContacts,addContacts,updateUserAvatar,resetPassword}
+module.exports={getAllUsers,findUserByUserID,addUser,changePassword,updateUserInfo,getAllContacts,addContacts,updateUserAvatar,resetPassword,getGmailByPhoneNumber}

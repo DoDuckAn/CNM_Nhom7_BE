@@ -130,6 +130,34 @@ _Response_:
 }
 ```
 
+### Get Gmail by Phone Number
+**Endpoint:** `POST /api/user/gmail`
+- **Description:** Lấy Gmail của người dùng dựa trên số điện thoại.
+- **Request Body:**
+  ```json
+  {
+    "phoneNumber": "string"
+  }
+  ```
+- **Response:** Trả về Gmail tương ứng với số điện thoại hoặc lỗi nếu không tìm thấy.
+
+**Example:**
+```
+POST http://localhost:3000/api/user/gmail
+```
+_Request Body_:
+```json
+{
+  "phoneNumber": "0123456789"
+}
+```
+_Response_:
+```json
+{
+  "gmail": "example@gmail.com"
+}
+```
+
 ### Get All Contacts
 **Endpoint:** `GET /api/user/:userID/contacts`
 - **Description:** Lấy danh bạ của người dùng.
