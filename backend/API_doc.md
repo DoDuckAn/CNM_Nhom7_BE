@@ -131,7 +131,7 @@ _Response_:
 ```
 
 ### Get Gmail by Phone Number
-**Endpoint:** `POST /api/user/gmail`
+**Endpoint:** `GET /api/user/gmail`
 - **Description:** Lấy Gmail của người dùng dựa trên số điện thoại.
 - **Request Body:**
   ```json
@@ -143,7 +143,7 @@ _Response_:
 
 **Example:**
 ```
-POST http://localhost:3000/api/user/gmail
+GET http://localhost:3000/api/user/gmail
 ```
 _Request Body_:
 ```json
@@ -186,7 +186,7 @@ _Response:_
 ---
 
 ### Add Contact
-**Endpoint:** `POST /api/user/:userID/contacts`
+**Endpoint:** `PUT /api/user/:userID/contacts/add`
 - **Description:** Thêm một liên hệ mới vào danh bạ của người dùng.
 - **Request Parameters:**
   - `userID` _(string)_: ID của người dùng đang thêm vào danh bạ.
@@ -200,7 +200,7 @@ _Response:_
 
 **Example:**
 ```
-PUT http://localhost:3000/api/user/921946bf/contacts
+PUT http://localhost:3000/api/user/921946bf/contacts/add
 ```
 _Request Body:_
 ```json
@@ -212,6 +212,48 @@ _Response:_
 ```json
 {
   "message": "Thêm contact thành công",
+}
+```
+
+---
+
+### Delete Contact  
+**Endpoint:** `PUT /api/user/:userID/contacts/delete`  
+- **Description:** Xóa một liên hệ khỏi danh bạ của người dùng.  
+- **Request Parameters:**  
+  - `userID` _(string)_: ID của người dùng cần xóa liên hệ.  
+- **Request Body:**  
+  ```json
+  {
+    "contactID": "string"
+  }
+  ```  
+- **Response:** Trả về thông báo xóa thành công hoặc lỗi.  
+
+**Example:**  
+```
+PUT http://localhost:3000/api/user/921946bf/contacts/delete
+```  
+_Request Body:_  
+```json
+{
+  "contactID": "456"
+}
+```  
+_Response:_  
+```json
+{
+  "message": "Xóa contact thành công",
+  "user": {
+    "userID": "921946bf",
+    "phoneNumber": "0123456789",
+    "contacts": [
+      {
+        "userID": "123",
+        "username": "Alice"
+      }
+    ]
+  }
 }
 ```
 

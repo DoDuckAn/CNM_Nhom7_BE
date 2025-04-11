@@ -10,7 +10,8 @@ router.get('/:userID/contacts',UserController.getAllContacts);
 router.get('/:phoneNumber/gmail',UserController.getGmailByPhoneNumber)
 router.put('/changePassword/:phoneNumber',UserController.changePassword);
 router.put('/:userID',UserController.updateUserInfo);
-router.put('/:userID/contacts',UserController.addContacts);
+router.put('/:userID/contacts/add',UserController.addContacts);
+router.put('/:userID/contacts/delete',UserController.deleteContact);
 router.put('/:userID/avatar', upload.single('avatar'), UserController.updateUserAvatar);
 router.post('/resetPassword/:phoneNumber',UserController.resetPassword);
 module.exports=router;

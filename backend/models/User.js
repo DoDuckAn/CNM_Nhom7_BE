@@ -77,6 +77,14 @@ const UserModel = {
     const updatedContacts = [...(user.contacts || []), newContact];
     return this.UpdateUser(userID, user.phoneNumber, { contacts: updatedContacts });
   },
+
+  async DeleteContact(userID,deleteContact) {
+    const user=await this.GetUserByID(userID);
+    if(!user) return null;
+  
+    const updatedContacts=(user.contacts||[]).filter(contact=>contact.userID!==deleteContact);
+    return this.UpdateUser(userID,user.phoneNumber,{contacts:updatedContacts});
+  },  
 };
 
 module.exports=UserModel

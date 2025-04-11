@@ -140,6 +140,27 @@ const addContacts = async (req, res) => {
   }
 };
 
+const deleteContact = async (req, res) => {
+  try {
+    const { userID } = req.params;
+    const { contactID } = req.body;
+
+    if (!contactID) return res.status(400).json({ message: 'Thiếu contactID' });
+
+    const user = await UserModel.GetUserByID(userID);
+    if (!user) return res.status(404).json({ message: 'Không tìm thấy userID' });
+
+    if (!(user.contacts || []).some((contact) => contact.userID === contactID)) {
+      return res.status(404).json({ message: 'Contact không tồn tại' });
+    }
+
+    const updatedUser = await UserModel.DeleteContact(userID, contactID);
+    res.status(200).json({ message: 'Xóa contact thành công', user: updatedUser });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+};
+
  const getGmailByPhoneNumber=async(req,res)=>{
   try {
     const {phoneNumber}=req.params;
@@ -184,4 +205,4 @@ const resetPassword=async(req,res)=>{
     res.status(500).json({ message: 'Lỗi server', error: error.message });
   }
 }
-module.exports={getAllUsers,findUserByUserID,addUser,changePassword,updateUserInfo,getAllContacts,addContacts,updateUserAvatar,resetPassword,getGmailByPhoneNumber}
+module.exports={getAllUsers,findUserByUserID,addUser,changePassword,updateUserInfo,getAllContacts,addContacts,updateUserAvatar,resetPassword,getGmailByPhoneNumber,deleteContact}
