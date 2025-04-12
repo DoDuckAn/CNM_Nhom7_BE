@@ -62,7 +62,7 @@ const changePassword = async (req, res) => {
     const user = await UserModel.GetUserByPhone(phoneNumber);
     if (!user) return res.status(404).json({ message: 'Không tìm thấy số điện thoại' });
 
-    const checkPassword=bcrypt.compare(oldPassword,user.password);
+    const checkPassword=await bcrypt.compare(oldPassword,user.password);
     if(!checkPassword)
       return res.status(400).json({message:"mật khẩu sai"});
 
