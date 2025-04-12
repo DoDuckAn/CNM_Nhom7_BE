@@ -61,7 +61,7 @@ _Request Body_:
 }
 ```
 
-### Forgot Password(Change Password)
+### Change Password
 **Endpoint:** `PUT /api/user/changePassword/:phoneNumber`  
 - **Description:** Đổi mật khẩu của người dùng dựa trên số điện thoại.  
 - **Request Parameters:**  
@@ -69,6 +69,7 @@ _Request Body_:
 - **Request Body:**  
   ```json
   {
+    "oldPassword": "string",
     "newPassword": "string"
   }
   ```
@@ -81,6 +82,7 @@ PUT http://localhost:3000/api/user/changePassword/0123456789
 _Request Body_:
 ```json
 {
+  "oldPassword": "string",
   "newPassword": "newsecurepassword"
 }
 ```

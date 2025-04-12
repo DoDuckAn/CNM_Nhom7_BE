@@ -57,9 +57,14 @@ const addUser = async (req, res) => {
 const changePassword = async (req, res) => {
   try {
     const { phoneNumber } = req.params;
+    const { oldPassword } = req.body;
     const { newPassword } = req.body;
     const user = await UserModel.GetUserByPhone(phoneNumber);
     if (!user) return res.status(404).json({ message: 'Không tìm thấy số điện thoại' });
+
+    const checkPassword=bcrypt.compare(oldPassword,user.password);
+    if(!checkPassword)
+      return res.status(400).json({message:"mật khẩu sai"});
 
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
     await UserModel.UpdateUser(user.userID, phoneNumber,{ password: hashedNewPassword });
