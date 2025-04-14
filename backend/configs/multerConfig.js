@@ -3,7 +3,12 @@ const path = require("path");
 
 // Kiểm tra loại file hợp lệ
 const fileFilter = (req, file, callback) => {
-    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "video/mp4", "video/mkv", "video/quicktime", "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"];
+    const allowedTypes = [
+        "image/jpeg", "image/png", "image/gif",
+        "video/mp4", "video/mkv", "video/quicktime",
+        "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "audio/mpeg", "audio/wav", "audio/ogg", "audio/mp4", "audio/x-m4a", "audio/aac", "audio/webm"
+      ];
     
     if (allowedTypes.includes(file.mimetype)) {
         callback(null, true);

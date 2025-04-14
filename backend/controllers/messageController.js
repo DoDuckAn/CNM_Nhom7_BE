@@ -125,7 +125,7 @@ const saveMessage = async (senderID, receiverID, groupID, messageTypeID, context
 
         let finalContext = context;
         // Nếu có file, upload lên S3
-        if (filePath && ["type2", "type3", "type5"].includes(messageTypeID)) {
+        if (filePath && ["type2", "type3", "type5", "type6"].includes(messageTypeID)) {
             const uploadURL = await uploadFileToS3(filePath);
             finalContext = uploadURL; 
             // Xóa file tạm sau khi upload
