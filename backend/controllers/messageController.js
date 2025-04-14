@@ -154,4 +154,4 @@ const saveMessage = async (senderID, receiverID, groupID, messageTypeID, context
     }
 };
 
-module.exports = { getAllMessageInSingleChat, saveMessage, getAllUserMessage };
+module.exports = { getAllMessageInSingleChat, saveMessage, getAllUserMessage,getAllMessageInGroupChat};

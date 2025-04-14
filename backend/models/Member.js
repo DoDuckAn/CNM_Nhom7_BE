@@ -21,7 +21,7 @@ const MemberModel = {
   },
 
   /**
-   * Tìm tất cả nhóm mà user tham gia
+   * kiểm tra xem user có tham gia nhóm này không
    */
   async findByUserAndGroup(userID, groupID) {
     const params = {

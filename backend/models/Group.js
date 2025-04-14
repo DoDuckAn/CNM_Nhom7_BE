@@ -3,6 +3,14 @@ const { dynamoDB } = require("../utils/aws-helper");
 const TABLE_NAME = 'Groups';
 
 const GroupModel = {
+  async getAllGroup(){
+    const params={
+      TableName:TABLE_NAME
+    }
+    let data=await dynamoDB.scan(params).promise();
+    return data.Items;
+  },
+
   async createGroup(groupID, groupName) {
     const params = {
       TableName: TABLE_NAME,

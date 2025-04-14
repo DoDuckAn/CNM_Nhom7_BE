@@ -611,6 +611,85 @@ _Response (Lỗi server):_
 ```
 
 ---
+
+### Get All Groups  
+**Endpoint:** `GET /api/group`  
+- **Description:** Lấy toàn bộ danh sách các nhóm hiện có trong hệ thống.  
+- **Response:** Trả về mảng chứa thông tin tất cả các nhóm hoặc lỗi server.  
+
+**Example:**  
+```
+GET http://localhost:3000/api/group
+```  
+
+_Response (Thành công):_  
+```json
+{
+  "data": [
+    {
+      "groupID": "group-a1b2c3",
+      "groupName": "Nhóm Học Tập"
+    },
+    {
+      "groupID": "group-x9y8z7",
+      "groupName": "Dự Án Cuối Khóa"
+    }
+  ]
+}
+```
+
+_Response (Lỗi server):_  
+```json
+{
+  "message": "Lỗi server: Chi tiết lỗi"
+}
+```
+
+---
+
+### Get Group Members  
+**Endpoint:** `GET /api/group/users/:groupID`  
+- **Description:** Lấy danh sách các thành viên thuộc một nhóm cụ thể.  
+- **Path Parameter:**  
+  - `groupID` (string, required) – ID của nhóm cần lấy danh sách thành viên.  
+- **Response:** Trả về danh sách user tham gia nhóm hoặc lỗi nếu không tìm thấy nhóm hoặc lỗi server.  
+
+**Example:**  
+```
+GET http://localhost:3000/api/group/users/group-a1b2c3
+```  
+
+_Response (Thành công):_  
+```json
+{
+  "data": [
+    {
+      "userID": "user-123456",
+      "memberRole": "LEADER"
+    },
+    {
+      "userID": "user-789012",
+      "memberRole": "MEMBER"
+    }
+  ]
+}
+```
+
+_Response (Không tìm thấy nhóm):_  
+```json
+{
+  "message": "không tìm thấy groupID: group-a1b2c3"
+}
+```
+
+_Response (Lỗi server):_  
+```json
+{
+  "message": "Lỗi server: Chi tiết lỗi"
+}
+```
+
+---
 ## Authentication API
 
 ### Login User  

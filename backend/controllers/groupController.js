@@ -241,4 +241,30 @@ const deleteGroup=async(groupID)=>{
         return `Lỗi server:${error}`;
     }
 }
-module.exports={createGroup,joinGroup,leaveGroup,kickMember,deleteGroup,getUserGroups};
+
+const getAllGroup=async(req,res)=>{
+    try {
+        let data=await GroupModel.getAllGroup();
+        res.status(200).json({data:data})
+    } catch (error) {
+        res.status(500).json({message:`Lỗi server: ${error}`})
+    }
+}
+
+const getAllGroupUsers=async(req,res)=>{
+    try {
+        const {groupID}=req.params;
+        const group=await GroupModel.findByGroupID(groupID);
+        if(!group){
+            console.log(`không tìm thấy groupID: ${groupID}`);
+            res.status(404).json({message:`không tìm thấy groupID: ${groupID}`})
+        }
+
+        const data=await MemberModel.findAllByGroup(groupID);
+        res.status(200).json({data:data})
+    } catch (error) {
+        
+    }
+}
+
+module.exports={createGroup,joinGroup,leaveGroup,kickMember,deleteGroup,getUserGroups,getAllGroup,getAllGroupUsers};
