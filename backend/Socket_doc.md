@@ -198,7 +198,7 @@ socket.on("updateGroupChatSeenStatus", (messageID, seenUserID) => {
 
 ### **2.5. Xóa tin nhắn (Soft Delete)**
 - **Sự kiện:** `deleteMessage`
-- **Mô tả:** Khi người dùng muốn xóa một tin nhắn về mặt giao diện (bên gửi không thấy tin nhắn nữa, bên nhận vẫn thấy), sự kiện này sẽ cập nhật trạng thái `deleteStatus`
+- **Mô tả:** Khi người dùng muốn xóa một tin nhắn khỏi giao diện của mình (soft delete), server sẽ cập nhật `deleteStatusByUser`, thêm vào `userID` tương ứng.
 - **Client gửi:**
 ```javascript
 socket.emit("deleteMessage", messageID, userID, (response) => {
@@ -209,45 +209,53 @@ socket.emit("deleteMessage", messageID, userID, (response) => {
 ```javascript
 socket.on("deleteMessage", async (messageID, userID, callback) => {
     try {
-        const message = await MessageModel.getMessageByID(messageID);
-        if (!message) return callback("Không tìm thấy tin nhắn");
+      const message = await MessageModel.getMessageByID(messageID);
+      if (!message) {
+        console.log("Không tìm thấy tin nhắn");
+        if (callback) callback("Không tìm thấy tin nhắn");
+        return;
+      }
 
-        await MessageModel.updateMessage(messageID, {
-            deleteStatus: true,
-            updatedAt: new Date().toISOString()
-        });
+      if (message.deleteStatusByUser.includes(userID)) {
+        if (callback) callback("Tin nhắn đã bị xóa trước đó");
+        return;
+      }
 
-        if (message.groupID) {
-            io.to(message.groupID).emit("deletedGroupMessage", messageID, userID);
-        } else {
-            io.to(message.senderID).to(message.receiverID).emit("deletedSingleMessage", messageID, userID);
-        }
+      await MessageModel.updateMessage(messageID, {
+        deleteStatusByUser: [...message.deleteStatusByUser, userID],
+      });
 
-        callback("Xóa tin nhắn thành công");
-    } catch (err) {
-        console.error("Lỗi khi xóa tin nhắn:", err);
-        callback("Lỗi server khi xóa tin nhắn");
+      if (message.groupID && message.groupID !== "NONE") {
+        io.to(userID).emit("deletedGroupMessage", messageID);
+      } else {
+        io.to(userID).emit("deletedSingleMessage", messageID);
+      }
+
+      if (callback) callback("Đã xóa tin nhắn thành công");
+    } catch (error) {
+      console.error("Lỗi khi xử lý deleteMessage:", error);
+      if (callback) callback("Lỗi server khi xóa tin nhắn");
     }
 });
 ```
 - **Client lắng nghe:**
 ```javascript
 socket.on("deletedSingleMessage", (messageID) => {
-    console.log("Tin nhắn đã bị xóa:", messageID);
+    console.log("Tin nhắn đã bị xóa khỏi giao diện:", messageID);
     // Cập nhật UI chat đơn
 });
 
 socket.on("deletedGroupMessage", (messageID) => {
-    console.log(`Tin nhắn đã bị xóa:`, messageID);
+    console.log("Tin nhắn trong nhóm đã bị xóa khỏi giao diện:", messageID);
     // Cập nhật UI chat nhóm
 });
 ```
 
 ---
 
-### **2.6. Thu hồi tin nhắn (Recall)**
+### **2.6. Thu hồi tin nhắn (Recall)(Hard Delete)**
 - **Sự kiện:** `recallMessage`
-- **Mô tả:** Khi người dùng muốn thu hồi một tin nhắn (cả 2 bên thấy "tin nhắn đã được thu hồi"), server sẽ cập nhật trạng thái `recallStatus`
+- **Mô tả:** Khi người dùng muốn thu hồi một tin nhắn (xóa hoàn toàn nó khỏi giao diện của cả hai bên), server sẽ xử lý việc xóa tin nhắn khỏi cơ sở dữ liệu và thông báo cho các client để xóa tin nhắn khỏi giao diện.
 - **Client gửi:**
 ```javascript
 socket.emit("recallMessage", messageID, userID, (response) => {
@@ -256,30 +264,35 @@ socket.emit("recallMessage", messageID, userID, (response) => {
 ```
 - **Server xử lý:**
 ```javascript
-socket.on('recallMessage', async (messageID, userID, callback) => {
+socket.on("recallMessage", async (messageID, userID, callback) => {
     try {
-        const message = await MessageModel.getMessageByID(messageID);
-        if (!message) return callback("Không tìm thấy tin nhắn");
+      const message = await MessageModel.getMessageByID(messageID);
+      if (!message) {
+        console.log("Không tìm thấy tin nhắn");
+        if (callback) callback("Không tìm thấy tin nhắn");
+        return;
+      }
 
-        if (message.senderID !== userID) return callback("Bạn không có quyền thu hồi tin nhắn này");
+      if (message.senderID !== userID) {
+        console.log("Người dùng không có quyền thu hồi tin nhắn");
+        if (callback) callback("Bạn không có quyền thu hồi tin nhắn này");
+        return;
+      }
 
-        if (message.recallStatus === true) return callback("Tin nhắn đã được thu hồi trước đó");
+      await MessageModel.RecallMessage(messageID);
 
-        await MessageModel.updateMessage(messageID, {
-            recallStatus: true,
-            updatedAt: new Date().toISOString()
-        });
+      if (message.groupID && message.groupID !== "NONE") {
+        io.to(message.groupID).emit("recalledGroupMessage", messageID);
+      } else {
+        io.to(message.senderID)
+          .to(message.receiverID)
+          .emit("recalledSingleMessage", messageID);
+      }
 
-        if (message.groupID) {
-            io.to(message.groupID).emit("recalledGroupMessage", messageID, userID);
-        } else {
-            io.to(message.senderID).to(message.receiverID).emit("recalledSingleMessage", messageID, userID);
-        }
-
-        callback("Thu hồi tin nhắn thành công");
+      if (callback) callback("Thu hồi tin nhắn thành công");
     } catch (error) {
-        console.error("Lỗi khi xử lý recallMessage:", error);
-        callback("Lỗi server khi thu hồi tin nhắn");
+      console.error("Lỗi khi xử lý recallMessage:", error);
+      if (callback) callback("Lỗi server khi thu hồi tin nhắn");
     }
 });
 ```
@@ -287,18 +300,121 @@ socket.on('recallMessage', async (messageID, userID, callback) => {
 ```javascript
 socket.on("recalledSingleMessage", (messageID) => {
     console.log("Tin nhắn đã được thu hồi:", messageID);
-    // Cập nhật UI chat đơn
+    // Cập nhật UI chat đơn (vd: messageList=messageList.filter(msg=>msg.messageID!==messageID))
 });
 
 socket.on("recalledGroupMessage", (messageID) => {
-    console.log("Tin nhắn đã được thu hồi:", messageID);
+    console.log("Tin nhắn đã được thu hồi trong nhóm:", messageID);
     // Cập nhật UI chat nhóm
+});
+```
+
+### **2.7. Chuyển tiếp/Chia sẻ tin nhắn (Share Message)**
+- **Sự kiện:** `shareMessage`
+- **Mô tả:** Khi người dùng muốn chia sẻ (chuyển tiếp) một tin nhắn đã tồn tại cho người khác hoặc vào nhóm, sự kiện này sẽ tìm tin nhắn gốc theo `messageID`, tạo một tin nhắn mới với nội dung cũ và người gửi mới là người chia sẻ (`sharerID`).
+
+---
+
+- **Client gửi:**
+```javascript
+socket.emit("shareMessage", {
+    messageID: "original-message-id",
+    sharerID: "user123",//userID của người chuyển tiếp tin nhắn
+    receiverID: "user456", //userID của người nhận tin nhắn, null nếu đang chuyển tiếp tin nhắn vào nhóm
+    groupID: "group789"//groupID của group nhận tin nhắn, null nếu chuyển tiếp tin nhắn cho 1 người dùng
+}, (response) => {
+    console.log("Server response:", response);
 });
 ```
 
 ---
 
-### **2.7. Xử lý mất kết nối và tải lại tin nhắn**
+- **Server xử lý:**
+```javascript
+socket.on("shareMessage", async (messageData, callback) => {
+    try {
+        const { messageID, sharerID, receiverID, groupID } = messageData;
+
+        if (!messageID || !sharerID) {
+            if (callback) callback("Thiếu messageID hoặc sharerID");
+            return;
+        }
+
+        if (!receiverID && !groupID) {
+            if (callback) callback("Phải có receiverID hoặc groupID");
+            return;
+        }
+
+        const sharedMessage = await MessageModel.getMessageByID(messageID);
+        if (!sharedMessage) {
+            if (callback) callback("Không tìm thấy tin nhắn cần chia sẻ");
+            return;
+        }
+
+        const newMessageID = `${messageID}-share-${sharerID}-${Date.now()}`;
+
+        let newMessage;
+        if (receiverID && !groupID) {
+            newMessage = await MessageController.saveMessage(
+                sharerID,
+                receiverID,
+                groupID,
+                sharedMessage.messageTypeID,
+                sharedMessage.context,
+                newMessageID,
+                null
+            );
+
+            if (!newMessage) {
+                if (callback) callback("Lỗi chia sẻ tin nhắn");
+                return;
+            }
+
+            io.to(sharerID).to(receiverID).emit("receiveMessage", newMessage);
+            if (callback) callback("Đã chia sẻ");
+        } else if (groupID) {
+            newMessage = await MessageController.saveMessage(
+                sharerID,
+                receiverID,
+                groupID,
+                sharedMessage.messageTypeID,
+                sharedMessage.context,
+                newMessageID,
+                null
+            );
+
+            if (!newMessage) {
+                if (callback) callback("Lỗi chia sẻ tin nhắn");
+                return;
+            }
+
+            io.to(groupID).emit("receiveMessage", newMessage);
+            const members = await MemberModel.find({ groupID });
+            members.forEach((member) => {
+                io.to(member.userID).emit("receiveMessage", newMessage);
+            });
+            if (callback) callback("Đã chia sẻ");
+        }
+    } catch (error) {
+        console.error("Lỗi khi xử lý shareMessage:", error);
+        if (callback) callback("Lỗi server");
+    }
+});
+```
+
+---
+
+- **Client lắng nghe:**
+```javascript
+socket.on("receiveMessage", (newMessage) => {
+    console.log("Tin nhắn đã chia sẻ nhận được:", newMessage);
+    // Cập nhật UI cho cuộc trò chuyện tương ứng
+});
+```
+
+---
+
+### **2.8. Xử lý mất kết nối và tải lại tin nhắn**
 - **Sự kiện:** `reloadMessage`
 - **Mô tả:** Khi client bị mất kết nối, server sẽ yêu cầu client tải lại tin nhắn.
 - **Client lắng nghe:**
@@ -317,7 +433,7 @@ if (!socket.recovered) {
 
 ---
 
-### **2.8. Ngắt kết nối**
+### **2.9. Ngắt kết nối**
 - **Sự kiện:** `disconnect`
 - **Mô tả:** Khi người dùng thoát ứng dụng hoặc mất kết nối.
 - **Client lắng nghe:**
@@ -335,7 +451,7 @@ socket.on("disconnect", () => {
 
 ---
 
-### **2.9. Tham gia nhóm**
+### **2.10. Tham gia nhóm**
 - **Sự kiện:** `joinGroup`
 - **Mô tả:** Người dùng tham gia vào nhóm bằng `groupID`.
 - **Client gửi:**
@@ -366,7 +482,7 @@ socket.on("joinGroup", async (userID, groupID, callback) => {
 
 ---
 
-### **2.10. Thêm thành viên vào nhóm**
+### **2.11. Thêm thành viên vào nhóm**
 - **Sự kiện:** `addGroupMember`
 - **Mô tả:** Thêm một người dùng mới vào nhóm.
 - **Client gửi:**
@@ -397,7 +513,7 @@ socket.on("addGroupMember", async (userID, groupID, callback) => {
 
 ---
 
-### **2.11. Rời nhóm**
+### **2.12. Rời nhóm**
 - **Sự kiện:** `leaveGroup`
 - **Mô tả:** Người dùng rời khỏi nhóm.
 - **Client gửi:**
@@ -428,7 +544,7 @@ socket.on("leaveGroup", async (userID, groupID, callback) => {
 
 ---
 
-### **2.12. Kick thành viên khỏi nhóm**
+### **2.13. Kick thành viên khỏi nhóm**
 - **Sự kiện:** `kickMember`
 - **Mô tả:** Leader có quyền kick thành viên khỏi nhóm.
 - **Client gửi:**
@@ -468,7 +584,7 @@ socket.on("kickMember", async (leaderID, userID, groupID, callback) => {
 
 ---
 
-### **2.13. Xóa nhóm**
+### **2.14. Xóa nhóm**
 - **Sự kiện:** `deleteGroup`
 - **Mô tả:** Leader có thể xóa nhóm.
 - **Client gửi:**
@@ -507,4 +623,3 @@ socket.on("deleteGroup", async (userID, groupID, callback) => {
 - Luôn kiểm tra `callback` response khi gửi tin nhắn để biết trạng thái gửi.
 - Khi mất kết nối, client nên gọi API để tải lại tin nhắn cũ nếu cần.
 - Nếu sử dụng trong React, đặt socket vào context để có thể truy cập từ nhiều component.
-

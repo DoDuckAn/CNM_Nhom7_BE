@@ -180,6 +180,84 @@ io.on("connection", async (socket) => {
     }
   });
 
+socket.on("shareMessage",async(messageData,callback)=>{
+  try {
+    const {messageID,sharerID,receiverID,groupID}=messageData;
+
+    if (!messageID||!sharerID) {
+      console.log("Thiếu messageID hoặc sharerID");
+      if(callback) callback("Thiếu thông tin messageID hoặc sharerID");
+      return;
+    }
+
+    const sharedMessage=await MessageModel.getMessageByID(messageID);
+    if(!sharedMessage){
+      console.log("Không tìm thấy tin nhắn cần chuyển tiếp");
+      if(callback) callback("Không tìm thấy tin nhắn cần chuyển tiếp");
+      return;
+    }
+
+    if(!receiverID&&!groupID){
+      console.log("Thiếu receiverID hoặc groupID");
+      if(callback) callback("Thiếu thông tin receiverID hoặc groupID");
+      return;
+    }
+
+    let newMessage;
+    let newMessageID=`${messageID}-share-${sharerID}-${Date.now()}`;//tạo messageID mới
+    //trường hợp chuyển tiếp tin nhắn vào chat đơn
+    if(receiverID&&!groupID){
+      newMessage=await MessageController.saveMessage(
+        sharerID,//senderID giờ là sharerID,ID của người chuyển tiếp tin nhắn
+        receiverID,
+        groupID,
+        sharedMessage.messageTypeID,
+        sharedMessage.context,
+        newMessageID,
+        null
+      )
+      if (!newMessage) {
+        console.log("Chuyển tiếp tin nhắn vào chat đơn thất bại:", {newMessageID});
+        if (callback) callback("Lỗi chuyển tiếp tin nhắn");
+        return;
+      }
+      console.log("Đã chuyển tiếp tin nhắn vào chat đơn, emit lại:", newMessage);
+      // Gửi đến cả phòng cá nhân của sharer và receiver
+      io.to(sharerID).to(receiverID).emit("receiveMessage", newMessage);
+      if (callback) callback("Đã nhận");
+    }
+    // Trường hợp chat nhóm
+    else if(groupID){
+      newMessage = await MessageController.saveMessage(
+        sharerID,//senderID giờ là sharerID,ID của người chuyển tiếp tin nhắn
+        receiverID,
+        groupID,
+        sharedMessage.messageTypeID,
+        sharedMessage.context,
+        newMessageID,
+        null
+      );
+      if (!newMessage) {
+        console.log("Chuyển tiếp tin nhắn vào chat nhóm thất bại:", { messageID });
+        if (callback) callback("Lỗi chuyển tiếp tin nhắn");
+        return;
+      }
+      console.log("Đã chuyển tiếp tin nhắn vào chat nhóm, emit lại:", newMessage);
+      // Gửi đến phòng nhóm
+      io.to(groupID).emit("receiveMessage", newMessage);
+      // Gửi đến phòng cá nhân của tất cả thành viên trong nhóm
+      const members = await MemberModel.find({groupID});
+      members.forEach((member) => {
+        io.to(member.userID).emit("receiveMessage", newMessage);
+      });
+      if (callback) callback("Đã nhận");
+    }
+  } catch (error) {
+    console.log("Lỗi khi socket.on shareMessage:", error.message, error.stack);
+    if (callback) callback("Lỗi server");
+  }
+});
+
   socket.on("seenMessage", async (messageID, seenUserID, callback) => {
     try {
       const message = await MessageModel.getMessageByID(messageID);
@@ -200,7 +278,7 @@ io.on("connection", async (socket) => {
         seenStatus: newSeenStatus,
       });
   
-      const isSingleChat = !message.groupID || message.groupID === "NONE" || message.groupID === "";
+      const isSingleChat = !message.groupID || message.groupID === "NONE";
       if (isSingleChat) {
         console.log("Emit updateSingleChatSeenStatus to:", message.senderID, message.receiverID);
         io.to(message.senderID)
@@ -227,20 +305,19 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      if (message.deleteStatus === true) {
+      if (message.deleteStatusByUser.includes(userID)) {
         if (callback) callback("Tin nhắn đã bị xóa trước đó");
         return;
       }
 
       await MessageModel.updateMessage(messageID, {
-        deleteStatus: true,
+        deleteStatusByUser: [...message.deleteStatusByUser,userID],
       });
 
-      if (message.groupID) {
-        io.to(message.groupID).emit("deletedGroupMessage", messageID);
+      if (message.groupID&&message.groupID!=="NONE") {
+        io.to(userID).emit("deletedGroupMessage", messageID);
       } else {
-        io.to(message.senderID)
-          .to(message.receiverID)
+        io.to(userID)
           .emit("deletedSingleMessage", messageID);
       }
 
@@ -266,16 +343,9 @@ io.on("connection", async (socket) => {
         return;
       }
 
-      if (message.recallStatus === true) {
-        if (callback) callback("Tin nhắn đã được thu hồi trước đó");
-        return;
-      }
+      await MessageModel.RecallMessage(messageID);
 
-      await MessageModel.updateMessage(messageID, {
-        recallStatus: true,
-      });
-
-      if (message.groupID) {
+      if (message.groupID&&message.groupID!=="NONE") {
         io.to(message.groupID).emit("recalledGroupMessage", messageID);
       } else {
         io.to(message.senderID)

@@ -11,8 +11,7 @@ const MessageModel = {
     receiverID,
     groupID = "NONE",
     seenStatus = [],
-    deleteStatus = false,
-    recallStatus = false,
+    deleteStatusByUser = [],
     messageTypeID,
     context,
     messageID,
@@ -27,8 +26,7 @@ const MessageModel = {
         receiverID,
         groupID,
         seenStatus,
-        deleteStatus,
-        recallStatus,
+        deleteStatusByUser,
         messageTypeID,
         context,
         createdAt,
@@ -117,6 +115,19 @@ const MessageModel = {
   
     const result = await dynamoDB.update(params).promise();
     return result.Attributes;
+  },
+  /**
+   * Xóa tin nhắn trong DB, theo messageID
+   */
+  async RecallMessage(messageID){
+    const params={
+      TableName:TABLE_NAME,
+      Key:{
+        messageID
+      }
+    };
+    
+    await dynamoDB.delete(params).promise();
   }
   
 };

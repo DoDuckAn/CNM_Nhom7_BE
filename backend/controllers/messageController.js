@@ -139,8 +139,7 @@ const saveMessage = async (senderID, receiverID, groupID, messageTypeID, context
             receiverID, 
             groupID: groupID || "NONE", // Sửa ở đây: đảm bảo groupID không là null
             seenStatus: [],
-            deleteStatus: false,
-            recallStatus: false,
+            deleteStatusByUser: [],
             messageTypeID, 
             context: finalContext,
             createdAt: new Date().toISOString(),
