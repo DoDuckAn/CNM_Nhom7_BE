@@ -1,6 +1,5 @@
 const { default: mongoose } = require('mongoose');
 const Message = require('../models/Message');
-const MessageType = require('../models/MessageType');
 const User = require('../models/User');
 const fs = require('fs');
 const cloudinary = require('../configs/cloudinaryConfig');

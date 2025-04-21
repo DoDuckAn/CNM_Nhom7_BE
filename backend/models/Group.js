@@ -43,6 +43,36 @@ const GroupModel = {
     await dynamoDB.delete(params).promise();
     return true;
   },
+
+  async updateGroup(groupID, updateFields) {
+    if (!groupID || !updateFields || Object.keys(updateFields).length === 0) {
+      throw new Error("Thiếu groupID hoặc không có trường nào để cập nhật");
+    }
+  
+    const attributeUpdates = Object.entries(updateFields).map(
+      ([key, val], i) => `#key${i} = :val${i}`
+    );
+  
+    const ExpressionAttributeNames = {};
+    const ExpressionAttributeValues = {};
+  
+    Object.keys(updateFields).forEach((key, i) => {
+      ExpressionAttributeNames[`#key${i}`] = key;
+      ExpressionAttributeValues[`:val${i}`] = updateFields[key];
+    });
+  
+    const params = {
+      TableName: TABLE_NAME,
+      Key: { groupID },
+      UpdateExpression: `SET ${attributeUpdates.join(', ')}`,
+      ExpressionAttributeNames,
+      ExpressionAttributeValues,
+      ReturnValues: 'ALL_NEW',
+    };
+  
+    const result = await dynamoDB.update(params).promise();
+    return result.Attributes;
+  }  
 };
 
 module.exports = GroupModel;

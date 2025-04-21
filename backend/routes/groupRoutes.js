@@ -6,4 +6,5 @@ router.post('/',GroupController.createGroup);
 router.get('/:userID',GroupController.getUserGroups);
 router.get('/',GroupController.getAllGroup);
 router.get('/:groupID/users',GroupController.getAllGroupUsers)
+router.get('/:groupID/info',GroupController.getGroupByID);
 module.exports=router;

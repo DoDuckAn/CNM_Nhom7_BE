@@ -619,6 +619,83 @@ socket.on("deleteGroup", async (userID, groupID, callback) => {
 });
 ```
 
+### **2.15. Đổi quyền trong group**
+
+- **Sự kiện:** `switchRole`
+- **Mô tả:** Khi một LEADER trong nhóm muốn chuyển quyền LEADER cho một thành viên khác, server sẽ xử lý việc chuyển quyền và thông báo cho các client về sự thay đổi quyền hạn trong nhóm.
+- **Client gửi:**
+```javascript
+socket.emit("switchRole", userID, targetUserID, groupID, (response) => {
+    console.log("Server response:", response);
+});
+```
+- **Server xử lý:**
+```javascript
+socket.on("switchRole", async (userID, targetUserID, groupID, callback) => {
+    try {
+        const switchRoleStatus = await GroupController.switchRoleInGroup(userID, targetUserID, groupID);
+        
+        if (switchRoleStatus !== true) {
+            if (callback) callback(switchRoleStatus);
+            return;
+        }
+
+        // Phát sự kiện để tất cả thành viên trong nhóm biết có sự thay đổi vai trò
+        io.to(groupID).emit("roleSwitched", { userID, targetUserID, groupID });
+        
+        if (callback) callback("Thay đổi quyền LEADER thành công");
+    } catch (error) {
+        console.error("Lỗi khi thay đổi quyền LEADER:", error);
+        if (callback) callback("Lỗi server khi thay đổi quyền LEADER");
+    }
+});
+```
+- **Client lắng nghe:**
+```javascript
+socket.on("roleSwitched", ({ userID, targetUserID, groupID }) => {
+    console.log(`Quyền LEADER đã được chuyển từ ${userID} sang ${targetUserID} trong nhóm ${groupID}`);
+    // Cập nhật UI hoặc thực hiện các thao tác khác trong ứng dụng
+});
+```
+
+### **2.16. Đổi tên group**
+
+- **Sự kiện:** `renameGroup`
+- **Mô tả:** Khi người dùng muốn đổi tên nhóm, server sẽ xử lý việc cập nhật tên nhóm và thông báo cho các client về sự thay đổi.
+- **Client gửi:**
+```javascript
+socket.emit("renameGroup", newGroupName, groupID, (response) => {
+    console.log("Server response:", response);
+});
+```
+- **Server xử lý:**
+```javascript
+socket.on("renameGroup", async (newGroupName, groupID, callback) => {
+    try {
+        const renameStatus = await GroupController.renameGroup(groupID, newGroupName);
+        
+        if (renameStatus !== true) {
+            if (callback) callback(renameStatus);
+            return;
+        }
+
+        // Phát sự kiện để tất cả thành viên trong nhóm biết tên nhóm đã thay đổi
+        io.to(groupID).emit("groupRenamed", { newGroupName, groupID });
+        
+        if (callback) callback("Đổi tên nhóm thành công");
+    } catch (error) {
+        console.error("Lỗi khi đổi tên nhóm:", error);
+        if (callback) callback("Lỗi server khi đổi tên nhóm");
+    }
+});
+```
+- **Client lắng nghe:**
+```javascript
+socket.on("groupRenamed", ({ newGroupName, groupID }) => {
+    console.log(`Tên nhóm đã được thay đổi thành ${newGroupName} trong nhóm ${groupID}`);
+    // Cập nhật UI hoặc thực hiện các thao tác khác trong ứng dụng
+});
+```
 ## **3. Lưu ý**
 - Luôn kiểm tra `callback` response khi gửi tin nhắn để biết trạng thái gửi.
 - Khi mất kết nối, client nên gọi API để tải lại tin nhắn cũ nếu cần.

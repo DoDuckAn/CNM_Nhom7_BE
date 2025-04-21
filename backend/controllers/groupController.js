@@ -109,6 +109,10 @@ const joinGroup=async(userID,groupID)=>{
 
         //tạo member với memberRole là "MEMBER", lưu vào db
         await MemberModel.create(userID,groupID,"MEMBER");
+        //cập nhật số lượng thành viên của nhóm
+        await GroupModel.updateGroup(groupID, {
+            totalMembers: checkGroup.totalMembers + 1
+        });
         return true;
     } catch (error) {
         console.log(`lỗi khi user ${userID} tham gia nhóm ${groupID}: ${error}`);
@@ -162,6 +166,9 @@ const leaveGroup=async(userID,groupID)=>{
         
         //xóa user khỏi nhóm
         await MemberModel.delete(userID,groupID)
+        await GroupModel.updateGroup(groupID, {
+            totalMember: checkGroup.totalMember-1
+        });
         return true;
     } catch (error) {
         console.log(`lỗi khi user ${userID} rời nhóm ${groupID}: ${error}`);
@@ -204,6 +211,9 @@ const kickMember=async(userID,groupID)=>{
 
         //xóa user khỏi nhóm
         await MemberModel.delete(userID,groupID);
+        await GroupModel.updateGroup(groupID, {
+            totalMember: checkGroup.totalMember-1
+        });
 
         return true;
     } catch (error) {
@@ -242,6 +252,14 @@ const deleteGroup=async(groupID)=>{
     }
 }
 
+/**
+ * Lấy danh sách tất cả nhóm hiện có trong hệ thống
+ * 
+ * @async
+ * @route   GET /api/group
+ * @method  getAllGroup
+ * @returns {JSON} Trả về danh sách tất cả các nhóm hoặc lỗi server
+ */
 const getAllGroup=async(req,res)=>{
     try {
         let data=await GroupModel.getAllGroup();
@@ -251,6 +269,15 @@ const getAllGroup=async(req,res)=>{
     }
 }
 
+/**
+ * Lấy danh sách tất cả thành viên trong một nhóm
+ * 
+ * @async
+ * @route   GET /api/group/:groupID/users
+ * @method  getAllGroupUsers
+ * @param   {string} req.params.groupID - ID của nhóm cần lấy thành viên
+ * @returns {JSON} Danh sách thành viên trong nhóm hoặc lỗi nếu không tìm thấy groupID hoặc lỗi server
+ */
 const getAllGroupUsers=async(req,res)=>{
     try {
         const {groupID}=req.params;
@@ -267,4 +294,96 @@ const getAllGroupUsers=async(req,res)=>{
     }
 }
 
-module.exports={createGroup,joinGroup,leaveGroup,kickMember,deleteGroup,getUserGroups,getAllGroup,getAllGroupUsers};
+/**
+ * Chuyển quyền LEADER trong nhóm cho thành viên khác
+ *
+ * @async
+ * @method  switchRoleInGroup
+ * @param   {string} userID - ID của người hiện tại là LEADER
+ * @param   {string} targetUserID - ID của thành viên sẽ trở thành LEADER
+ * @param   {string} groupID - ID của nhóm
+ * @returns {boolean|string} Trả về true nếu chuyển thành công, hoặc thông báo lỗi
+ */
+const switchRoleInGroup = async (userID, targetUserID, groupID) => {
+    try {
+      // Kiểm tra nhóm có tồn tại không
+      const group = await GroupModel.findByGroupID(groupID);
+      if (!group) {
+        return "Không tìm thấy nhóm";
+      }
+  
+      // Kiểm tra cả hai người dùng có là thành viên của nhóm không
+      const currentLeader = await MemberModel.findByUserAndGroup(userID, groupID);
+      const targetMember = await MemberModel.findByUserAndGroup(targetUserID, groupID);
+  
+      if (!currentLeader || !targetMember) {
+        return "Một trong hai người dùng không phải thành viên nhóm";
+      }
+  
+      // Kiểm tra userID hiện tại có phải LEADER không
+      if (currentLeader.memberRole !== "LEADER") {
+        return "Người dùng hiện tại không phải là LEADER";
+      }
+  
+      // Cập nhật quyền
+      await MemberModel.updateRole(targetUserID, groupID, "LEADER"); // LEADER mới
+      await MemberModel.updateRole(userID, groupID, "MEMBER");       // LEADER cũ thành MEMBER
+  
+      return true;
+    } catch (error) {
+      console.log(`Lỗi khi chuyển quyền trong nhóm ${groupID}: ${error}`);
+      return `Lỗi server: ${error}`;
+    }
+  };
+
+  /**
+ * Lấy thông tin nhóm theo groupID
+ * 
+ * @async
+ * @route   GET /api/group/:groupID/info
+ * @method  getGroupByID
+ * @param   {string} req.params.groupID - ID của nhóm cần lấy thông tin
+ * @returns {JSON} Thông tin nhóm hoặc lỗi nếu không tìm thấy groupID hoặc lỗi server
+ */
+  const getGroupByID=async(req,res)=>{
+    try {
+        const {groupID}=req.params;
+        const group=await GroupModel.findByGroupID(groupID);
+        if(!group){
+            console.log(`không tìm thấy groupID: ${groupID}`);
+            res.status(404).json({message:`không tìm thấy groupID: ${groupID}`})
+        }
+        res.status(200).json({data:group})
+    } catch (error) {
+        console.log(`lỗi khi lấy thông tin nhóm ${groupID}: ${error}`);
+        res.status(500).json({message:`Lỗi server: ${error}`})
+    }
+}
+
+/**
+ * Đổi tên nhóm
+ *
+ * @async
+ * @method  renameGroup
+ * @param   {string} groupID - ID của nhóm cần đổi tên
+ * @param   {string} newGroupName - Tên mới cho nhóm
+ * @returns {boolean|string} Trả về true nếu cập nhật thành công, hoặc thông báo lỗi
+ */
+const renameGroup = async (groupID, newGroupName) => {
+    try {
+      // Kiểm tra group có tồn tại không
+      const group = await GroupModel.findByGroupID(groupID);
+      if (!group) {
+        return "Không tìm thấy nhóm";
+      }
+  
+      // Cập nhật tên nhóm
+      await GroupModel.updateGroup(groupID, { groupName: newGroupName });
+      return true;
+    } catch (error) {
+      console.log(`Lỗi khi đổi tên nhóm ${groupID}: ${error}`);
+      return `Lỗi server: ${error}`;
+    }
+  };
+  
+module.exports={createGroup,joinGroup,leaveGroup,kickMember,deleteGroup,getUserGroups,getAllGroup,getAllGroupUsers,switchRoleInGroup,getGroupByID,renameGroup};

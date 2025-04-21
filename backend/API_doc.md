@@ -690,6 +690,46 @@ _Response (Lỗi server):_
 ```
 
 ---
+
+### Get Group Information  
+**Endpoint:** `GET /api/group/:groupID/info`  
+- **Description:** Lấy thông tin chi tiết của một nhóm dựa trên `groupID`. Nếu nhóm tồn tại, trả về thông tin nhóm, nếu không thì trả về lỗi không tìm thấy nhóm.
+- **Path Parameter:**  
+  - `groupID` (string, required) – ID của nhóm cần lấy thông tin.
+- **Response:** Trả về thông tin nhóm hoặc lỗi nếu không tìm thấy nhóm hoặc lỗi server.  
+
+**Example:**  
+```
+GET http://localhost:3000/api/group/group-a1b2c3/info
+```  
+
+_Response (Thành công):_  
+```json
+{
+  "data": {
+    "groupID": "group-a1b2c3",
+    "groupName": "Nhóm Học Tập",
+    "totalMembers": 10
+  }
+}
+```
+
+_Response (Không tìm thấy nhóm):_  
+```json
+{
+  "message": "Không tìm thấy groupID: group-a1b2c3"
+}
+```
+
+_Response (Lỗi server):_  
+```json
+{
+  "message": "Lỗi server: Chi tiết lỗi"
+}
+```
+
+---
+
 ## Authentication API
 
 ### Login User  

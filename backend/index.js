@@ -430,6 +430,43 @@ socket.on("shareMessage",async(messageData,callback)=>{
     if (callback) callback("xóa nhóm thành công");
   });
 
+  socket.on("renameGroup", async (groupID, newGroupName, callback) => {
+    try {
+      const renameStatus = await GroupController.renameGroup(groupID, newGroupName);
+      if (renameStatus !== true) {
+          if (callback) callback(renameStatus);
+          return;
+      }
+
+      // Phát sự kiện để tất cả thành viên trong nhóm biết tên nhóm đã thay đổi
+      io.to(groupID).emit("groupRenamed", { groupID, newGroupName });
+      
+      if (callback) callback("Đổi tên nhóm thành công");
+    } catch (error) {
+      console.error("Lỗi khi đổi tên nhóm:", error);
+      if (callback) callback("Lỗi server khi đổi tên nhóm");
+    }
+  });
+
+  socket.on("switchRole", async (userID, targetUserID, groupID, callback) => {
+    try {
+      const switchRoleStatus = await GroupController.switchRoleInGroup(userID, targetUserID, groupID);
+      
+      if (switchRoleStatus !== true) {
+          if (callback) callback(switchRoleStatus);
+          return;
+      }
+
+      // Phát sự kiện để tất cả thành viên trong nhóm biết có sự thay đổi vai trò
+      io.to(groupID).emit("roleSwitched", { userID, targetUserID, groupID });
+      
+      if (callback) callback("Thay đổi quyền LEADER thành công");
+    } catch (error) {
+      console.error("Lỗi khi thay đổi quyền LEADER:", error);
+      if (callback) callback("Lỗi server khi thay đổi quyền LEADER");
+    }
+  });
+
   socket.on("disconnect", (reason) => {
     console.log(`Client disconnected: ${socket.id} - Reason: ${reason}`);
   });
