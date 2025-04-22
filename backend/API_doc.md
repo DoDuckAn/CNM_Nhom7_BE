@@ -648,7 +648,7 @@ _Response (Lỗi server):_
 ---
 
 ### Get Group Members  
-**Endpoint:** `GET /api/group/users/:groupID`  
+**Endpoint:** `GET /api/group/:groupID/users`  
 - **Description:** Lấy danh sách các thành viên thuộc một nhóm cụ thể.  
 - **Path Parameter:**  
   - `groupID` (string, required) – ID của nhóm cần lấy danh sách thành viên.  
@@ -656,7 +656,7 @@ _Response (Lỗi server):_
 
 **Example:**  
 ```
-GET http://localhost:3000/api/group/users/group-a1b2c3
+GET http://localhost:3000/api/group/group-a1b2c3/users
 ```  
 
 _Response (Thành công):_  
