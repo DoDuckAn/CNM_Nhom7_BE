@@ -168,7 +168,7 @@ io.on("connection", async (socket) => {
         // Gửi đến phòng nhóm
         io.to(groupID).emit("receiveMessage", newMessage);
         // Gửi đến phòng cá nhân của tất cả thành viên trong nhóm
-        const members = await MemberModel.find({ groupID });
+        const members = await MemberModel.findAllByGroup({ groupID });
         members.forEach((member) => {
           io.to(member.userID).emit("receiveMessage", newMessage);
         });
@@ -246,7 +246,7 @@ socket.on("shareMessage",async(messageData,callback)=>{
       // Gửi đến phòng nhóm
       io.to(groupID).emit("receiveMessage", newMessage);
       // Gửi đến phòng cá nhân của tất cả thành viên trong nhóm
-      const members = await MemberModel.find({groupID});
+      const members = await MemberModel.findAllByGroup({groupID});
       members.forEach((member) => {
         io.to(member.userID).emit("receiveMessage", newMessage);
       });
@@ -397,7 +397,7 @@ socket.on("shareMessage",async(messageData,callback)=>{
   });
 
   socket.on("kickMember", async (leaderID, userID, groupID, callback) => {
-    const leader = await MemberModel.findOne({ userID: leaderID, groupID });
+    const leader = await MemberModel.findByUserAndGroup({ userID: leaderID, groupID });
     if (!leader || leader.memberRole !== "LEADER") {
       if (callback) callback("Bạn không có quyền kick thành viên");
       return;
