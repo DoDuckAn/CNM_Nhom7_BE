@@ -386,13 +386,13 @@ _Response:_
 ```
 
 ### Get All Messages in a Single Chat
-**Endpoint:** `GET /api/message/:userID1/:userID2`
+**Endpoint:** `GET /api/message/single/:userID1/:userID2`
 - **Description:** Lấy tất cả tin nhắn giữa hai user.
 - **Response:** Trả về danh sách tin nhắn.
 
 **Example:**
 ```
-GET http://localhost:3000/api/message/4ba34dec/921946bf
+GET http://localhost:3000/api/message/single/4ba34dec/921946bf
 ```
 _Response:_
 ```json

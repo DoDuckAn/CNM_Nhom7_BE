@@ -14,7 +14,7 @@ const { uploadFileToS3, deleteLocalFile } = require('../utils/aws-helper');
  * Lấy tất cả tin nhắn giữa hai người dùng trong chat đơn
  * 
  * @async
- * @route   GET /api/message/:userID1/:userID2
+ * @route   GET /api/message/single/:userID1/:userID2
  * @method  getAllMessageInSingleChat
  * @param   {string} req.params.userID1 - ID của người dùng 1
  * @param   {string} req.params.userID2 - ID của người dùng 2
@@ -47,6 +47,8 @@ const getAllMessageInSingleChat = async (req, res) => {
 const getAllMessageInGroupChat = async (req, res) => {
     try {
         const { groupID } = req.params;
+        console.log('groupIDID:',groupID);
+        
         if (!groupID)
             return res.status(404).json({ message: "thiếu groupID" });
 

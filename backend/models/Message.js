@@ -59,16 +59,17 @@ const MessageModel = {
    * Lấy tất cả tin nhắn trong group
    */
   async getMessagesInGroup(groupID) {
+    console.log('groupid:',groupID);
+    
     const params = {
       TableName: TABLE_NAME,
-      IndexName: 'GroupIndex',
-      KeyConditionExpression: 'groupID = :gid',
+      FilterExpression: 'groupID = :gid',
       ExpressionAttributeValues: {
         ':gid': groupID,
       },
     };
 
-    const result = await dynamoDB.query(params).promise();
+    const result = await dynamoDB.scan(params).promise();
     return result.Items.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
   },
 

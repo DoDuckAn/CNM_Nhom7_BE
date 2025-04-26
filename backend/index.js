@@ -59,6 +59,12 @@ io.on("connection", async (socket) => {
     console.log(`User ${userID} joined personal room: ${userID}`);
   });
 
+  // Khi client yêu cầu join một group
+  socket.on("joinGroupRoom",(groupID) => {
+    socket.join(groupID);
+    console.log(`Socket ${socket.id} joined group room: ${groupID}`);
+  });
+
   socket.on("sendMessage", async (message, callback) => {
     try {
       const {
@@ -152,7 +158,7 @@ io.on("connection", async (socket) => {
       else {
         newMessage = await MessageController.saveMessage(
           senderID,
-          receiverID,
+          receiverID||"NONE",
           groupID,
           messageTypeID,
           context,
@@ -167,11 +173,6 @@ io.on("connection", async (socket) => {
         console.log("Đã lưu mess chat nhóm, emit lại:", newMessage);
         // Gửi đến phòng nhóm
         io.to(groupID).emit("receiveMessage", newMessage);
-        // Gửi đến phòng cá nhân của tất cả thành viên trong nhóm
-        const members = await MemberModel.findAllByGroup({ groupID });
-        members.forEach((member) => {
-          io.to(member.userID).emit("receiveMessage", newMessage);
-        });
         if (callback) callback("Đã nhận");
       }
     } catch (error) {
@@ -210,7 +211,7 @@ socket.on("shareMessage",async(messageData,callback)=>{
       newMessage=await MessageController.saveMessage(
         sharerID,//senderID giờ là sharerID,ID của người chuyển tiếp tin nhắn
         receiverID,
-        groupID,
+        groupID||"NONE",
         sharedMessage.messageTypeID,
         sharedMessage.context,
         newMessageID,
@@ -230,7 +231,7 @@ socket.on("shareMessage",async(messageData,callback)=>{
     else if(groupID){
       newMessage = await MessageController.saveMessage(
         sharerID,//senderID giờ là sharerID,ID của người chuyển tiếp tin nhắn
-        receiverID,
+        receiverID||"NONE",
         groupID,
         sharedMessage.messageTypeID,
         sharedMessage.context,
@@ -245,11 +246,6 @@ socket.on("shareMessage",async(messageData,callback)=>{
       console.log("Đã chuyển tiếp tin nhắn vào chat nhóm, emit lại:", newMessage);
       // Gửi đến phòng nhóm
       io.to(groupID).emit("receiveMessage", newMessage);
-      // Gửi đến phòng cá nhân của tất cả thành viên trong nhóm
-      const members = await MemberModel.findAllByGroup({groupID});
-      members.forEach((member) => {
-        io.to(member.userID).emit("receiveMessage", newMessage);
-      });
       if (callback) callback("Đã nhận");
     }
   } catch (error) {
