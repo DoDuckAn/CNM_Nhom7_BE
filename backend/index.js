@@ -393,7 +393,7 @@ socket.on("shareMessage",async(messageData,callback)=>{
   });
 
   socket.on("kickMember", async (leaderID, userID, groupID, callback) => {
-    const leader = await MemberModel.findByUserAndGroup({ userID: leaderID, groupID });
+    const leader = await MemberModel.findByUserAndGroup(leaderID, groupID);
     if (!leader || leader.memberRole !== "LEADER") {
       if (callback) callback("Bạn không có quyền kick thành viên");
       return;
