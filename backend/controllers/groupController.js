@@ -17,7 +17,6 @@ const MemberModel = require('../models/Member');
 const createGroup=async(req,res)=>{
     try {
         const {groupName,userID}=req.body;
-        console.log(req.body);
         
         //kiểm tra groupName
         if(!groupName||!groupName.trim()){
@@ -132,6 +131,8 @@ const joinGroup=async(userID,groupID)=>{
 const leaveGroup=async(userID,groupID)=>{
     try {
         //kiểm tra groupID
+        console.log("leavegrop data user:",userID);
+        console.log("leavegrop data grp:",groupID);
         const checkGroup=await GroupModel.findByGroupID(groupID);
         if(!checkGroup){
             console.log("không tìm thấy groupID");
@@ -167,7 +168,7 @@ const leaveGroup=async(userID,groupID)=>{
         //xóa user khỏi nhóm
         await MemberModel.delete(userID,groupID)
         await GroupModel.updateGroup(groupID, {
-            totalMember: checkGroup.totalMember-1
+            totalMembers: checkGroup.totalMembers-1
         });
         return true;
     } catch (error) {
@@ -212,7 +213,7 @@ const kickMember=async(userID,groupID)=>{
         //xóa user khỏi nhóm
         await MemberModel.delete(userID,groupID);
         await GroupModel.updateGroup(groupID, {
-            totalMember: checkGroup.totalMember-1
+            totalMembers: checkGroup.totalMembers-1
         });
 
         return true;

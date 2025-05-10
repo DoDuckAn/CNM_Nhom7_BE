@@ -357,6 +357,8 @@ socket.on("shareMessage",async(messageData,callback)=>{
   });
 
   socket.on("joinGroup", async (userID, groupID, callback) => {
+    console.log("socket join group userID:",userID);
+    console.log("socket join group groupID:",groupID);
     const joinStatus = await GroupController.joinGroup(userID, groupID);
     if (joinStatus !== true) {
       if (callback) callback(joinStatus);

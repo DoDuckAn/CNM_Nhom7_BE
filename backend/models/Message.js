@@ -59,7 +59,7 @@ const MessageModel = {
    * Lấy tất cả tin nhắn trong group
    */
   async getMessagesInGroup(groupID) {
-    console.log('groupid:',groupID);
+    // console.log('groupid:',groupID);
     
     const params = {
       TableName: TABLE_NAME,

@@ -47,7 +47,7 @@ const getAllMessageInSingleChat = async (req, res) => {
 const getAllMessageInGroupChat = async (req, res) => {
     try {
         const { groupID } = req.params;
-        console.log('groupIDID:',groupID);
+        // console.log('groupIDID:',groupID);
         
         if (!groupID)
             return res.status(404).json({ message: "thiếu groupID" });
