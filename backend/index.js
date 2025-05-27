@@ -39,13 +39,22 @@ app.use("/api/group", groupRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/OTP", OTPCodeRoutes);
 
+
+// Map để lưu sessionID và socket.id của web client đang chờ login
+const qrSessions = new Map();
+
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
-  if (!token) return next(new Error("Authentication error"));
 
+  // Cho phép kết nối không cần token (dành cho QR login)
+  if (!token) {
+    socket.user = null; // Gắn user null nếu không xác thực
+    return next();
+  }
+
+  // Nếu có token thì xác thực như bình thường
   jwt.verify(token, process.env.JWT_SECRET_KEY, (err, user) => {
     if (err) return next(new Error("Invalid token"));
-
     socket.user = user;
     next();
   });
@@ -465,8 +474,40 @@ socket.on("shareMessage",async(messageData,callback)=>{
     }
   });
 
+  // Web gửi sessionID khi render QR
+  socket.on("qr-session", ({ sessionID }) => {
+    // Ghi sessionID mới cho socket
+    qrSessions.set(socket.id, sessionID);
+    console.log(`📲 QR session set: ${socket.id} → ${sessionID}`);
+  });
+
+  // App gửi thông tin đăng nhập sau khi quét QR
+  socket.on("qr-login", ({ sessionID, accessToken, refreshToken, user }) => {
+    // Tìm socketID tương ứng với sessionID
+    const targetSocketID = [...qrSessions.entries()]
+      .find(([_, sID]) => sID === sessionID)?.[0];
+
+    if (targetSocketID) {
+      io.to(targetSocketID).emit("qr-authenticated", {
+        accessToken,
+        refreshToken,
+        user,
+      });
+      console.log(`✅ Sent tokens to web session ${sessionID}`);
+
+      qrSessions.delete(targetSocketID); // cleanup sau khi đăng nhập xong
+    } else {
+      console.log(`❌ Invalid or expired session: ${sessionID}`);
+    }
+  });
+
   socket.on("disconnect", (reason) => {
     console.log(`Client disconnected: ${socket.id} - Reason: ${reason}`);
+    const sessionID = qrSessions.get(socket.id);
+    if (sessionID) {
+      qrSessions.delete(socket.id);
+      console.log(`🗑️ Cleaned session ${sessionID} for socket ${socket.id}`);
+    }
   });
 
   if (!socket.recovered) {

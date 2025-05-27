@@ -696,6 +696,89 @@ socket.on("groupRenamed", ({ newGroupName, groupID }) => {
     // Cập nhật UI hoặc thực hiện các thao tác khác trong ứng dụng
 });
 ```
+
+### **2.17. Đăng nhập qua mã QR phía web(QR Login)**
+
+* **Sự kiện:** `qr-login`
+
+* **Mô tả:**
+  App gửi dữ liệu đăng nhập sau khi quét QR thành công. Server nhận và gửi lại thông tin đăng nhập đến trình duyệt web tương ứng với sessionID.
+  **Lưu ý:** *Chỉ phía web client (trình duyệt) nhận sự kiện và xử lý đăng nhập.*
+
+---
+
+* **Client (App) gửi:**
+
+```javascript
+// App gửi lên server khi người dùng quét QR thành công và đăng nhập
+socket.emit("qr-login", {
+  sessionID: "a1b2c3d4-5678-90ef-ghij-klmnopqrstuv", // sessionID QR là do web tạo, app lấy sessionID bằng cách quét QR này 
+  accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...", // token hiện tại bên app, để xác thực
+  refreshToken: "abcdef123456...", // token hiện tại bên app, để xác thực
+  user: {
+    userID: "user123",
+    name: "Nguyễn Văn A",
+    avatar: "https://example.com/avatar.jpg",
+    // ...thông tin user hiện tại của app
+  }
+});
+```
+
+---
+
+* **Server xử lý:**
+
+```javascript
+socket.on("qr-login", ({ sessionID, accessToken, refreshToken, user }) => {
+  // Tìm socket ID trình duyệt tương ứng với sessionID được lưu trữ
+  const targetSocketID = [...qrSessions.entries()]
+    .find(([_, sID]) => sID === sessionID)?.[0];
+
+  if (targetSocketID) {
+    // Gửi token và thông tin user về web client tại session này
+    io.to(targetSocketID).emit("qr-authenticated", {
+      accessToken,
+      refreshToken,
+      user,
+    });
+    console.log(`✅ Đã gửi tokens tới web session ${sessionID}`);
+
+    // Xóa sessionID sau khi đã gửi token để tránh sử dụng lại
+    qrSessions.delete(targetSocketID);
+  } else {
+    console.log(`❌ Session không hợp lệ hoặc đã hết hạn: ${sessionID}`);
+  }
+});
+```
+
+---
+
+* **Client (Web) nhận:**
+
+```javascript
+// Web client lắng nghe sự kiện đăng nhập thành công qua QR
+socket.on("qr-authenticated", ({ accessToken, refreshToken, user }) => {
+  // Lưu token vào localStorage
+  localStorage.setItem("token", accessToken);
+  localStorage.setItem("refreshToken", refreshToken);
+
+  // Điều hướng người dùng đến trang chính sau khi đăng nhập
+  navigate("/home");
+});
+```
+
+---
+
+### **Lưu ý chung:**
+
+* `sessionID` do web client tạo ra và gắn trong QR code.
+* App chỉ gửi dữ liệu đăng nhập qua sự kiện `qr-login`.
+* Web client mới là nơi nhận dữ liệu và xử lý đăng nhập.
+* Sau khi gửi thành công, sessionID sẽ bị xóa khỏi server để bảo mật và tránh trùng lặp.
+* Nếu sessionID không hợp lệ hoặc đã bị xóa, server sẽ không gửi phản hồi.
+
+---
+
 ## **3. Lưu ý**
 - Luôn kiểm tra `callback` response khi gửi tin nhắn để biết trạng thái gửi.
 - Khi mất kết nối, client nên gọi API để tải lại tin nhắn cũ nếu cần.
