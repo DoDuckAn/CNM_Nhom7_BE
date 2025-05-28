@@ -1,20 +1,20 @@
-const AWS = require('aws-sdk');
+const AWS = require("aws-sdk");
 const dynamoDB = new AWS.DynamoDB.DocumentClient();
 
-const TABLE_NAME = 'Members';
+const TABLE_NAME = "Members";
 
 const MemberModel = {
-   /**
+  /**
    * Thêm một thành viên mới vào nhóm
    * */
-  async create(userID, groupID, memberRole = 'MEMBER') {
+  async create(userID, groupID, memberRole = "MEMBER") {
     const params = {
       TableName: TABLE_NAME,
       Item: {
         userID,
         groupID,
         memberRole,
-      }
+      },
     };
 
     await dynamoDB.put(params).promise();
@@ -34,15 +34,15 @@ const MemberModel = {
   },
 
   /**
-   * Tìm tất cả nhóm mà user tham gia
+   * Tìm tất cả nhóm mà user tham gia ?????
    */
   async findAllByUser(userID) {
     const params = {
       TableName: TABLE_NAME,
-      IndexName: 'UserIndex',
-      KeyConditionExpression: 'userID = :uid',
+      IndexName: "UserIndex",
+      KeyConditionExpression: "userID = :uid",
       ExpressionAttributeValues: {
-        ':uid': userID,
+        ":uid": userID,
       },
     };
 
@@ -56,10 +56,10 @@ const MemberModel = {
   async findAllByGroup(groupID) {
     const params = {
       TableName: TABLE_NAME,
-      IndexName: 'GroupIndex',
-      KeyConditionExpression: 'groupID = :gid',
+      IndexName: "GroupIndex",
+      KeyConditionExpression: "groupID = :gid",
       ExpressionAttributeValues: {
-        ':gid': groupID,
+        ":gid": groupID,
       },
     };
 
@@ -74,20 +74,21 @@ const MemberModel = {
     const params = {
       TableName: TABLE_NAME,
       Key: { userID, groupID },
-      UpdateExpression: 'set memberRole = :r',
+      UpdateExpression: "set memberRole = :r",
       ExpressionAttributeValues: {
-        ':r': newRole,
+        ":r": newRole,
       },
     };
-  
+
     await dynamoDB.update(params).promise();
     return true;
   },
-  
+
   /**
    * Xóa một thành viên khỏi nhóm
    */
   async delete(userID, groupID) {
+    console.log("Deleting member:", userID, groupID);
     const params = {
       TableName: TABLE_NAME,
       Key: { userID, groupID },
@@ -97,15 +98,15 @@ const MemberModel = {
     return true;
   },
 
-   /**
+  /**
    * Xóa tất cả thành viên trong nhóm
    */
-   async deleteAllByGroup(groupID) {
+  async deleteAllByGroup(groupID) {
     const members = await this.findAllByGroup(groupID);
 
     if (members.length === 0) return true;
 
-    const deleteRequests = members.map(member => ({
+    const deleteRequests = members.map((member) => ({
       DeleteRequest: {
         Key: {
           userID: member.userID,
