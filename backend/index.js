@@ -418,6 +418,7 @@ io.on("connection", async (socket) => {
     }
 
     io.in(userID).socketsJoin(groupID); // Thêm socket vào room nhóm
+    io.in(userID).emit("newMember", userID, groupID); // Gửi thông báo đến người dùng
 
     //emit to group room
     io.to(groupID).emit("newMember", userID);
@@ -430,8 +431,8 @@ io.on("connection", async (socket) => {
       if (callback) callback(leaveStatus);
       return;
     }
-
     socket.leave(groupID);
+    socket.emit("memberLeft", userID, groupID);
     io.to(groupID).emit("memberLeft", groupID, userID);
     if (callback) callback("Rời nhóm thành công");
   });
