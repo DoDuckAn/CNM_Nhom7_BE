@@ -39,9 +39,10 @@ app.use("/api/group", groupRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/OTP", OTPCodeRoutes);
 
-
 // Map để lưu sessionID và socket.id của web client đang chờ login
 const qrSessions = new Map();
+
+const userSocketMap = new Map(); // userID → socket.id
 
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
@@ -54,7 +55,10 @@ io.use((socket, next) => {
 
   // Nếu có token thì xác thực như bình thường
   jwt.verify(token, process.env.JWT_SECRET_KEY, (err, user) => {
-    if (err) return next(new Error("Invalid token"));
+    if (err) {
+      console.log("invalid token");
+      return next(new Error("Invalid token"));
+    }
     socket.user = user;
     next();
   });
@@ -68,13 +72,14 @@ io.on("connection", async (socket) => {
     console.log(`User ${userID} joined personal room: ${userID}`);
   });
 
-  // Khi client yêu cầu join một group
-  socket.on("joinGroupRoom",(groupID) => {
+  // Khi client yêu cầu socket join room with groupID
+  socket.on("joinGroupRoom", (groupID) => {
     socket.join(groupID);
     console.log(`Socket ${socket.id} joined group room: ${groupID}`);
   });
 
   socket.on("sendMessage", async (message, callback) => {
+    console.log("Send message called");
     try {
       const {
         senderID,
@@ -154,7 +159,9 @@ io.on("connection", async (socket) => {
           filePath
         );
         if (!newMessage) {
-          console.log("Lưu tin nhắn chat đơn thất bại:", { messageID });
+          console.log("Lưu tin nhắn chat đơn thất bại:", {
+            messageID,
+          });
           if (callback) callback("Lỗi lưu tin nhắn");
           return;
         }
@@ -167,7 +174,7 @@ io.on("connection", async (socket) => {
       else {
         newMessage = await MessageController.saveMessage(
           senderID,
-          receiverID||"NONE",
+          receiverID || "NONE",
           groupID,
           messageTypeID,
           context,
@@ -175,7 +182,9 @@ io.on("connection", async (socket) => {
           filePath
         );
         if (!newMessage) {
-          console.log("Lưu tin nhắn chat nhóm thất bại:", { messageID });
+          console.log("Lưu tin nhắn chat nhóm thất bại:", {
+            messageID,
+          });
           if (callback) callback("Lỗi lưu tin nhắn");
           return;
         }
@@ -190,78 +199,92 @@ io.on("connection", async (socket) => {
     }
   });
 
-socket.on("shareMessage",async(messageData,callback)=>{
-  try {
-    const {messageID,sharerID,receiverID,groupID}=messageData;
+  socket.on("shareMessage", async (messageData, callback) => {
+    try {
+      const { messageID, sharerID, receiverID, groupID } = messageData;
 
-    if (!messageID||!sharerID) {
-      console.log("Thiếu messageID hoặc sharerID");
-      if(callback) callback("Thiếu thông tin messageID hoặc sharerID");
-      return;
-    }
-
-    const sharedMessage=await MessageModel.getMessageByID(messageID);
-    if(!sharedMessage){
-      console.log("Không tìm thấy tin nhắn cần chuyển tiếp");
-      if(callback) callback("Không tìm thấy tin nhắn cần chuyển tiếp");
-      return;
-    }
-
-    if(!receiverID&&!groupID){
-      console.log("Thiếu receiverID hoặc groupID");
-      if(callback) callback("Thiếu thông tin receiverID hoặc groupID");
-      return;
-    }
-
-    let newMessage;
-    let newMessageID=`${messageID}-share-${sharerID}-${Date.now()}`;//tạo messageID mới
-    //trường hợp chuyển tiếp tin nhắn vào chat đơn
-    if(receiverID&&!groupID){
-      newMessage=await MessageController.saveMessage(
-        sharerID,//senderID giờ là sharerID,ID của người chuyển tiếp tin nhắn
-        receiverID,
-        groupID||"NONE",
-        sharedMessage.messageTypeID,
-        sharedMessage.context,
-        newMessageID,
-        null
-      )
-      if (!newMessage) {
-        console.log("Chuyển tiếp tin nhắn vào chat đơn thất bại:", {newMessageID});
-        if (callback) callback("Lỗi chuyển tiếp tin nhắn");
+      if (!messageID || !sharerID) {
+        console.log("Thiếu messageID hoặc sharerID");
+        if (callback) callback("Thiếu thông tin messageID hoặc sharerID");
         return;
       }
-      console.log("Đã chuyển tiếp tin nhắn vào chat đơn, emit lại:", newMessage);
-      // Gửi đến cả phòng cá nhân của sharer và receiver
-      io.to(sharerID).to(receiverID).emit("receiveMessage", newMessage);
-      if (callback) callback("Đã nhận");
-    }
-    // Trường hợp chat nhóm
-    else if(groupID){
-      newMessage = await MessageController.saveMessage(
-        sharerID,//senderID giờ là sharerID,ID của người chuyển tiếp tin nhắn
-        receiverID||"NONE",
-        groupID,
-        sharedMessage.messageTypeID,
-        sharedMessage.context,
-        newMessageID,
-        null
+
+      const sharedMessage = await MessageModel.getMessageByID(messageID);
+      if (!sharedMessage) {
+        console.log("Không tìm thấy tin nhắn cần chuyển tiếp");
+        if (callback) callback("Không tìm thấy tin nhắn cần chuyển tiếp");
+        return;
+      }
+
+      if (!receiverID && !groupID) {
+        console.log("Thiếu receiverID hoặc groupID");
+        if (callback) callback("Thiếu thông tin receiverID hoặc groupID");
+        return;
+      }
+
+      let newMessage;
+      let newMessageID = `${messageID}-share-${sharerID}-${Date.now()}`; //tạo messageID mới
+      //trường hợp chuyển tiếp tin nhắn vào chat đơn
+      if (receiverID && !groupID) {
+        newMessage = await MessageController.saveMessage(
+          sharerID, //senderID giờ là sharerID,ID của người chuyển tiếp tin nhắn
+          receiverID,
+          groupID || "NONE",
+          sharedMessage.messageTypeID,
+          sharedMessage.context,
+          newMessageID,
+          null
+        );
+        if (!newMessage) {
+          console.log("Chuyển tiếp tin nhắn vào chat đơn thất bại:", {
+            newMessageID,
+          });
+          if (callback) callback("Lỗi chuyển tiếp tin nhắn");
+          return;
+        }
+        console.log(
+          "Đã chuyển tiếp tin nhắn vào chat đơn, emit lại:",
+          newMessage
+        );
+        // Gửi đến cả phòng cá nhân của sharer và receiver
+        io.to(sharerID).to(receiverID).emit("receiveMessage", newMessage);
+        if (callback) callback("Đã nhận");
+      }
+      // Trường hợp chat nhóm
+      else if (groupID) {
+        newMessage = await MessageController.saveMessage(
+          sharerID, //senderID giờ là sharerID,ID của người chuyển tiếp tin nhắn
+          receiverID || "NONE",
+          groupID,
+          sharedMessage.messageTypeID,
+          sharedMessage.context,
+          newMessageID,
+          null
+        );
+        if (!newMessage) {
+          console.log("Chuyển tiếp tin nhắn vào chat nhóm thất bại:", {
+            messageID,
+          });
+          if (callback) callback("Lỗi chuyển tiếp tin nhắn");
+          return;
+        }
+        console.log(
+          "Đã chuyển tiếp tin nhắn vào chat nhóm, emit lại:",
+          newMessage
+        );
+        // Gửi đến phòng nhóm
+        io.to(groupID).emit("receiveMessage", newMessage);
+        if (callback) callback("Đã nhận");
+      }
+    } catch (error) {
+      console.log(
+        "Lỗi khi socket.on shareMessage:",
+        error.message,
+        error.stack
       );
-      if (!newMessage) {
-        console.log("Chuyển tiếp tin nhắn vào chat nhóm thất bại:", { messageID });
-        if (callback) callback("Lỗi chuyển tiếp tin nhắn");
-        return;
-      }
-      console.log("Đã chuyển tiếp tin nhắn vào chat nhóm, emit lại:", newMessage);
-      // Gửi đến phòng nhóm
-      io.to(groupID).emit("receiveMessage", newMessage);
-      if (callback) callback("Đã nhận");
+      if (callback) callback("Lỗi server");
     }
-  } catch (error) {
-    console.log("Lỗi khi socket.on shareMessage:", error.message, error.stack);
-    if (callback) callback("Lỗi server");
-  }
-});
+  });
 
   socket.on("seenMessage", async (messageID, seenUserID, callback) => {
     try {
@@ -271,28 +294,36 @@ socket.on("shareMessage",async(messageData,callback)=>{
         callback("không tìm thấy tin nhắn");
         return;
       }
-  
+
       if (message.seenStatus.includes(seenUserID)) {
         console.log("seenUserID đã tồn tại trong seenStatus");
         if (callback) callback("seenUserID đã tồn tại trong seenStatus");
         return;
       }
-  
+
       const newSeenStatus = [...message.seenStatus, seenUserID];
       await MessageModel.updateMessage(messageID, {
         seenStatus: newSeenStatus,
       });
-  
+
       const isSingleChat = !message.groupID || message.groupID === "NONE";
       if (isSingleChat) {
-        console.log("Emit updateSingleChatSeenStatus to:", message.senderID, message.receiverID);
+        console.log(
+          "Emit updateSingleChatSeenStatus to:",
+          message.senderID,
+          message.receiverID
+        );
         io.to(message.senderID)
           .to(message.receiverID)
           .emit("updateSingleChatSeenStatus", messageID); // Chỉ gửi messageID
         if (callback) callback("Đã cập nhật seenStatus chat đơn");
       } else {
         console.log("Emit updateGroupChatSeenStatus to:", message.groupID);
-        io.to(message.groupID).emit("updateGroupChatSeenStatus", messageID, seenUserID);
+        io.to(message.groupID).emit(
+          "updateGroupChatSeenStatus",
+          messageID,
+          seenUserID
+        );
         if (callback) callback("Đã cập nhật seenStatus chat nhóm");
       }
     } catch (error) {
@@ -316,14 +347,13 @@ socket.on("shareMessage",async(messageData,callback)=>{
       }
 
       await MessageModel.updateMessage(messageID, {
-        deleteStatusByUser: [...message.deleteStatusByUser,userID],
+        deleteStatusByUser: [...message.deleteStatusByUser, userID],
       });
 
-      if (message.groupID&&message.groupID!=="NONE") {
+      if (message.groupID && message.groupID !== "NONE") {
         io.to(userID).emit("deletedGroupMessage", messageID);
       } else {
-        io.to(userID)
-          .emit("deletedSingleMessage", messageID);
+        io.to(userID).emit("deletedSingleMessage", messageID);
       }
 
       if (callback) callback("Đã xóa tin nhắn thành công");
@@ -350,7 +380,7 @@ socket.on("shareMessage",async(messageData,callback)=>{
 
       await MessageModel.RecallMessage(messageID);
 
-      if (message.groupID&&message.groupID!=="NONE") {
+      if (message.groupID && message.groupID !== "NONE") {
         io.to(message.groupID).emit("recalledGroupMessage", messageID);
       } else {
         io.to(message.senderID)
@@ -366,8 +396,7 @@ socket.on("shareMessage",async(messageData,callback)=>{
   });
 
   socket.on("joinGroup", async (userID, groupID, callback) => {
-    console.log("socket join group userID:",userID);
-    console.log("socket join group groupID:",groupID);
+    console.log("joinGroup request", { userID, groupID });
     const joinStatus = await GroupController.joinGroup(userID, groupID);
     if (joinStatus !== true) {
       if (callback) callback(joinStatus);
@@ -375,10 +404,12 @@ socket.on("shareMessage",async(messageData,callback)=>{
     }
 
     socket.join(groupID);
+    //gui thong tin user
     io.to(groupID).emit("newMember", userID);
     if (callback) callback("Tham gia nhóm thành công");
   });
 
+  //them vao nhom
   socket.on("addGroupMember", async (userID, groupID, callback) => {
     const addStatus = await GroupController.joinGroup(userID, groupID);
     if (addStatus !== true) {
@@ -387,6 +418,8 @@ socket.on("shareMessage",async(messageData,callback)=>{
     }
 
     socket.join(groupID);
+    socket.join(userID); // Đảm bảo socket cũng join vào phòng cá nhân của user
+    io.to(userID).emit("newMember", userID);
     io.to(groupID).emit("newMember", userID);
     if (callback) callback("Thêm thành viên thành công");
   });
@@ -439,15 +472,18 @@ socket.on("shareMessage",async(messageData,callback)=>{
 
   socket.on("renameGroup", async (groupID, newGroupName, callback) => {
     try {
-      const renameStatus = await GroupController.renameGroup(groupID, newGroupName);
+      const renameStatus = await GroupController.renameGroup(
+        groupID,
+        newGroupName
+      );
       if (renameStatus !== true) {
-          if (callback) callback(renameStatus);
-          return;
+        if (callback) callback(renameStatus);
+        return;
       }
 
       // Phát sự kiện để tất cả thành viên trong nhóm biết tên nhóm đã thay đổi
       io.to(groupID).emit("groupRenamed", { groupID, newGroupName });
-      
+
       if (callback) callback("Đổi tên nhóm thành công");
     } catch (error) {
       console.error("Lỗi khi đổi tên nhóm:", error);
@@ -457,16 +493,24 @@ socket.on("shareMessage",async(messageData,callback)=>{
 
   socket.on("switchRole", async (userID, targetUserID, groupID, callback) => {
     try {
-      const switchRoleStatus = await GroupController.switchRoleInGroup(userID, targetUserID, groupID);
-      
+      const switchRoleStatus = await GroupController.switchRoleInGroup(
+        userID,
+        targetUserID,
+        groupID
+      );
+
       if (switchRoleStatus !== true) {
-          if (callback) callback(switchRoleStatus);
-          return;
+        if (callback) callback(switchRoleStatus);
+        return;
       }
 
       // Phát sự kiện để tất cả thành viên trong nhóm biết có sự thay đổi vai trò
-      io.to(groupID).emit("roleSwitched", { userID, targetUserID, groupID });
-      
+      io.to(groupID).emit("roleSwitched", {
+        userID,
+        targetUserID,
+        groupID,
+      });
+
       if (callback) callback("Thay đổi quyền LEADER thành công");
     } catch (error) {
       console.error("Lỗi khi thay đổi quyền LEADER:", error);
@@ -484,8 +528,9 @@ socket.on("shareMessage",async(messageData,callback)=>{
   // App gửi thông tin đăng nhập sau khi quét QR
   socket.on("qr-login", ({ sessionID, accessToken, refreshToken, user }) => {
     // Tìm socketID tương ứng với sessionID
-    const targetSocketID = [...qrSessions.entries()]
-      .find(([_, sID]) => sID === sessionID)?.[0];
+    const targetSocketID = [...qrSessions.entries()].find(
+      ([_, sID]) => sID === sessionID
+    )?.[0];
 
     if (targetSocketID) {
       io.to(targetSocketID).emit("qr-authenticated", {
