@@ -417,9 +417,9 @@ io.on("connection", async (socket) => {
       return;
     }
 
-    socket.join(groupID);
-    socket.join(userID); // Đảm bảo socket cũng join vào phòng cá nhân của user
-    io.to(userID).emit("newMember", userID);
+    io.in(userID).socketsJoin(groupID); // Thêm socket vào room nhóm
+
+    //emit to group room
     io.to(groupID).emit("newMember", userID);
     if (callback) callback("Thêm thành viên thành công");
   });
@@ -432,7 +432,7 @@ io.on("connection", async (socket) => {
     }
 
     socket.leave(groupID);
-    io.to(groupID).emit("memberLeft", userID);
+    io.to(groupID).emit("memberLeft", groupID, userID);
     if (callback) callback("Rời nhóm thành công");
   });
 
